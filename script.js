@@ -15,9 +15,25 @@ const COLUMN_COUNT = 11;
 const bubbleRadius = (gameWidth / COLUMN_COUNT / 2) * 0.96; 
 const ROW_HEIGHT = bubbleRadius * Math.sqrt(3);
 
+// Центровка
+const GRID_REAL_WIDTH = COLUMN_COUNT * (bubbleRadius * 2);
+const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
+
 const maxRows = 30; 
-const startRows = 9; 
-const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFC300', '#00FFFF'];
+const startRows = 9; // Вернули как было
+
+// --- УСЛОЖНЕНИЕ: 8 ЦВЕТОВ ---
+const colors = [
+    '#FF5733', // Red
+    '#33FF57', // Green
+    '#3357FF', // Blue
+    '#F333FF', // Purple
+    '#FFC300', // Yellow
+    '#00FFFF', // Cyan
+    '#ff9f43', // Orange (Новый)
+    '#c8d6e5'  // Light Grey (Новый, хорошо виден на темном)
+];
+
 const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5; 
 
 // --- СОСТОЯНИЕ ---
@@ -26,7 +42,7 @@ let particles = [];
 let isGameOver = false;
 let animationId = null;
 
-let score = 0; // Текущий счет
+let score = 0; 
 
 let playerX = gameWidth / 2;
 let playerY = gameHeight - bubbleRadius * 2;
@@ -43,7 +59,7 @@ let bullet = {
 
 let nextColor = getRandomColor();
 
-// --- ФУНКЦИИ ---
+// --- БАЗОВЫЕ ФУНКЦИИ ---
 
 function getRandomColor() {
     return colors[Math.floor(Math.random() * colors.length)];
@@ -55,18 +71,12 @@ function getColsCount(r) {
 
 function getPixelCoords(r, c) {
     let shiftX = (r % 2) * bubbleRadius;
-    const GRID_REAL_WIDTH = COLUMN_COUNT * (bubbleRadius * 2);
-    const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
-    
     let x = c * (bubbleRadius * 2) + bubbleRadius + shiftX + OFFSET_X;
     let y = r * ROW_HEIGHT + bubbleRadius;
     return {x, y};
 }
 
 function getGridCoords(x, y) {
-    const GRID_REAL_WIDTH = COLUMN_COUNT * (bubbleRadius * 2);
-    const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
-
     let gridY = Math.round((y - bubbleRadius) / ROW_HEIGHT);
     let shiftX = (gridY % 2) * bubbleRadius;
     let gridX = Math.round((x - OFFSET_X - bubbleRadius - shiftX) / (bubbleRadius * 2));
@@ -331,7 +341,6 @@ function findAndRemoveMatches(startR, startC, color) {
                     x: p.x, y: p.y, color: b.color, 
                     type: 'pop', scale: 1, alpha: 1
                 });
-                // +10 очков за шарик
                 addScore(10);
             }
         }
@@ -383,7 +392,6 @@ function dropFloatingBubbles() {
                         type: 'fall', 
                         dx: (Math.random()-0.5) * 6, dy: 0
                     });
-                    // +20 очков за упавший
                     addScore(20);
                 }
             }
