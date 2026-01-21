@@ -10,22 +10,19 @@ canvas.width = gameWidth;
 canvas.height = gameHeight;
 
 const COLUMN_COUNT = 11; 
-// 0.96 дает небольшой визуальный зазор, чтобы шары не слипались
 const bubbleRadius = (gameWidth / COLUMN_COUNT / 2) * 0.96; 
-// Математически точная высота для сот (корень из 3)
 const ROW_HEIGHT = bubbleRadius * Math.sqrt(3);
 
 const maxRows = 30; 
-const startRows = 5;
+// Увеличили стартовые ряды, так как они больше не добавляются
+const startRows = 9; 
 const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFC300', '#00FFFF'];
 
 const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5; 
-const SHOTS_TO_ADD_ROW = 5; 
 
 // --- СОСТОЯНИЕ ---
 let grid = []; 
 let particles = []; 
-let shotsFired = 0; 
 let isGameOver = false;
 let animationId = null;
 
@@ -51,7 +48,7 @@ function getRandomColor() {
 }
 
 function getColsCount(r) {
-    // Четный: 11, Нечетный: 10
+    // Ряды жестко зафиксированы: Четный 11, Нечетный 10
     return (r % 2 === 0) ? COLUMN_COUNT : (COLUMN_COUNT - 1);
 }
 
@@ -69,7 +66,6 @@ function getGridCoords(x, y) {
     return {r: gridY, c: gridX};
 }
 
-// Безопасное получение шарика
 function getBubble(r, c) {
     if (r < 0 || r >= maxRows) return null;
     if (!grid[r]) return null;
@@ -86,11 +82,10 @@ function createGrid() {
         grid[r] = [];
         let cols = getColsCount(r);
         for (let c = 0; c < COLUMN_COUNT; c++) {
-            // Создаем ячейки, но активируем только допустимые колонки
-            let active = (c < cols && r < startRows);
+            let isActive = (c < cols && r < startRows);
             grid[r][c] = { 
-                color: active ? getRandomColor() : null, 
-                active: active 
+                color: isActive ? getRandomColor() : null, 
+                active: isActive 
             };
         }
     }
@@ -99,50 +94,35 @@ function createGrid() {
 window.restartGame = function() {
     isGameOver = false;
     gameOverScreen.classList.add('hidden');
-    shotsFired = 0;
+    // Меняем текст на экране проигрыша обратно, если выиграли
+    gameOverScreen.querySelector('h1').innerText = "GAME OVER"; 
+    
     particles = [];
     bullet.active = false;
     createGrid();
     reloadGun();
+    
     if (animationId) cancelAnimationFrame(animationId);
     draw();
 }
 
-function addNewRow() {
-    // Удаляем нижний ряд
-    grid.pop(); 
-    
-    // Создаем новый верхний (он будет Четным, то есть полным)
-    let newRow = [];
-    for (let c = 0; c < COLUMN_COUNT; c++) {
-        newRow[c] = { color: getRandomColor(), active: true };
-    }
-    grid.unshift(newRow); 
-    
-    // Чистим края (удаляем 11-й шар в нечетных рядах)
-    cleanEdges();
-    
-    // ВАЖНО: Сразу проверяем гравитацию, так как удаление края могло оборвать связи
-    dropFloatingBubbles(); 
-    
-    checkGameOver();
-}
-
-function cleanEdges() {
+// Проверка победы (если не осталось активных шаров)
+function checkWin() {
+    let hasBubbles = false;
     for (let r = 0; r < maxRows; r++) {
-        // Если ряд нечетный (10 мест), деактивируем 11-ю ячейку
-        if (r % 2 !== 0) {
-            let b = grid[r][COLUMN_COUNT - 1];
-            if (b && b.active) {
-                b.active = false;
-                // Можно добавить эффект исчезновения "раздавленного" шарика
-                let p = getPixelCoords(r, COLUMN_COUNT - 1);
-                particles.push({
-                    x: p.x, y: p.y, color: b.color, 
-                    type: 'pop', scale: 1, alpha: 1
-                });
+        for (let c = 0; c < grid[r].length; c++) {
+            if (grid[r][c].active) {
+                hasBubbles = true;
+                break;
             }
         }
+    }
+    if (!hasBubbles) {
+        isGameOver = true;
+        let h1 = gameOverScreen.querySelector('h1');
+        h1.innerText = "ПОБЕДА!";
+        h1.style.color = "#2ed573";
+        gameOverScreen.classList.remove('hidden');
     }
 }
 
@@ -153,7 +133,6 @@ function checkGameOver() {
             let b = getBubble(r, c);
             if (b && b.active) {
                 let p = getPixelCoords(r, c);
-                // Проверяем нижнюю границу шарика
                 if (p.y + bubbleRadius > LIMIT_LINE_Y) {
                     doGameOver();
                     return;
@@ -165,21 +144,22 @@ function checkGameOver() {
 
 function doGameOver() {
     isGameOver = true;
+    let h1 = gameOverScreen.querySelector('h1');
+    h1.innerText = "GAME OVER";
+    h1.style.color = "#ff4757";
     gameOverScreen.classList.remove('hidden');
 }
 
-// --- ФИЗИКА И ОБНОВЛЕНИЕ ---
+// --- ФИЗИКА ---
 
 function shoot() {
     if (bullet.active || isGameOver) return;
-    // Ждем окончания падений
     if (particles.some(p => p.type === 'fall')) return; 
 
     let angle = Math.atan2(aimY - playerY, aimX - playerX);
     bullet.dx = Math.cos(angle) * bullet.speed;
     bullet.dy = Math.sin(angle) * bullet.speed;
     bullet.active = true;
-    shotsFired++;
 }
 
 function update() {
@@ -234,7 +214,6 @@ function checkCollision() {
             if (b && b.active) {
                 let p = getPixelCoords(r, c);
                 let distSq = (bullet.x - p.x)**2 + (bullet.y - p.y)**2;
-                // Допуск -4 пикселя
                 if (distSq < (bubbleRadius * 2 - 4)**2) { 
                     return true;
                 }
@@ -247,19 +226,16 @@ function checkCollision() {
 function snapBubble() {
     bullet.active = false;
 
-    // 1. Ищем расчетную ячейку
     let coords = getGridCoords(bullet.x, bullet.y);
     let bestR = coords.r;
     let bestC = coords.c;
 
-    // 2. Магнит: если место занято/невалидно, ищем ближайшее свободное
     if (!isValidEmpty(bestR, bestC)) {
         let minDist = Infinity;
         let found = null;
 
         for (let r = bestR - 1; r <= bestR + 1; r++) {
             let cols = getColsCount(r);
-            // Проверяем соседей, включая диагональные
             for (let c = -1; c <= cols; c++) {
                 if (isValidEmpty(r, c)) {
                     let p = getPixelCoords(r, c);
@@ -274,7 +250,7 @@ function snapBubble() {
         if (found) { bestR = found.r; bestC = found.c; }
     }
 
-    // Защита от дурака: если вылезли за пределы массива
+    // Дополнительная проверка границ
     if (bestR >= 0 && bestR < maxRows) {
         let maxCols = getColsCount(bestR);
         if (bestC >= maxCols) bestC = maxCols - 1;
@@ -283,26 +259,20 @@ function snapBubble() {
 
     let targetBubble = getBubble(bestR, bestC);
     
-    // Ставим шар, только если ячейка пуста
     if (targetBubble && !targetBubble.active) {
         targetBubble.active = true;
         targetBubble.color = bullet.color;
         
         let popped = findAndRemoveMatches(bestR, bestC, bullet.color);
-        
-        // Если лопнули шары - проверяем гравитацию
         if (popped) {
             dropFloatingBubbles();
         }
-
-        // Сдвиг рядов (отложенный, чтобы увидеть результат выстрела)
-        if (shotsFired % SHOTS_TO_ADD_ROW === 0) {
-            setTimeout(() => {
-                addNewRow();
-            }, 250);
-        }
+        
+        // ВАЖНО: Мы убрали addNewRow(), больше никаких сдвигов!
+        // Шары просто копятся, если не лопаются.
     }
     
+    checkWin(); // Проверяем, не победил ли игрок
     checkGameOver();
     reloadGun();
 }
@@ -312,7 +282,7 @@ function isValidEmpty(r, c) {
     return (b !== null && !b.active);
 }
 
-// --- ПОИСК СОВПАДЕНИЙ (BFS) ---
+// --- УДАЛЕНИЕ ---
 
 function findAndRemoveMatches(startR, startC, color) {
     let cluster = [];
@@ -330,7 +300,6 @@ function findAndRemoveMatches(startR, startC, color) {
             for (let n of neighbors) {
                 let id = n.r + "-" + n.c;
                 if (!visited.has(id)) {
-                    // Предварительная проверка цвета для скорости
                     let nb = getBubble(n.r, n.c);
                     if (nb && nb.active && nb.color === color) {
                         visited.add(id);
@@ -358,13 +327,11 @@ function findAndRemoveMatches(startR, startC, color) {
     return false;
 }
 
-// --- ГРАВИТАЦИЯ (BFS) ---
-
+// --- ГРАВИТАЦИЯ ---
 function dropFloatingBubbles() {
     let visited = new Set();
     let queue = [];
 
-    // 1. Собираем все, что держится за потолок
     let cols0 = getColsCount(0);
     for (let c = 0; c < cols0; c++) {
         let b = getBubble(0, c);
@@ -374,11 +341,9 @@ function dropFloatingBubbles() {
         }
     }
 
-    // 2. Распространяем сигнал "опора"
     while (queue.length > 0) {
         let {r, c} = queue.shift();
         let neighbors = getNeighbors(r, c);
-        
         for (let n of neighbors) {
             let id = n.r + "-" + n.c;
             if (!visited.has(id)) {
@@ -391,7 +356,6 @@ function dropFloatingBubbles() {
         }
     }
 
-    // 3. Сбрасываем всё, что не помечено
     for (let r = 0; r < maxRows; r++) {
         let cols = getColsCount(r);
         for (let c = 0; c < cols; c++) {
@@ -413,13 +377,10 @@ function dropFloatingBubbles() {
 }
 
 function getNeighbors(r, c) {
-    // Точные смещения для гексагональной сетки
     let offsets;
     if (r % 2 === 0) { 
-        // Четный ряд (длинный)
         offsets = [[0,-1], [0,1], [-1,-1], [-1,0], [1,-1], [1,0]];
     } else { 
-        // Нечетный ряд (короткий)
         offsets = [[0,-1], [0,1], [-1,0], [-1,1], [1,0], [1,1]];
     }
 
@@ -427,7 +388,6 @@ function getNeighbors(r, c) {
     for (let o of offsets) {
         let nr = r + o[0];
         let nc = c + o[1];
-        // Проверяем валидность индекса
         if (nr >= 0 && nr < maxRows) {
             let ncols = getColsCount(nr);
             if (nc >= 0 && nc < ncols) {
@@ -506,12 +466,10 @@ function draw() {
                 let b = getBubble(r, c);
                 if (b && b.active) {
                     let p = getPixelCoords(r, c);
-                    
                     ctx.beginPath();
                     ctx.arc(p.x, p.y, bubbleRadius - 1, 0, Math.PI * 2);
                     ctx.fillStyle = b.color;
                     ctx.fill();
-                    
                     ctx.beginPath();
                     ctx.arc(p.x - bubbleRadius*0.3, p.y - bubbleRadius*0.3, bubbleRadius/3, 0, Math.PI*2);
                     ctx.fillStyle = 'rgba(255,255,255,0.3)';
