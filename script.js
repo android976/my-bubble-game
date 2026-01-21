@@ -1,6 +1,8 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const gameOverScreen = document.getElementById('game-over-screen');
+const scoreEl = document.getElementById('score-val');
+const finalScoreEl = document.getElementById('final-score');
 
 // --- НАСТРОЙКИ ---
 let gameWidth = window.innerWidth > 480 ? 480 : window.innerWidth;
@@ -10,20 +12,12 @@ canvas.width = gameWidth;
 canvas.height = gameHeight;
 
 const COLUMN_COUNT = 11; 
-// 0.96 - чтобы шарики визуально не слипались
 const bubbleRadius = (gameWidth / COLUMN_COUNT / 2) * 0.96; 
 const ROW_HEIGHT = bubbleRadius * Math.sqrt(3);
 
-// --- ЦЕНТРОВКА ЭКРАНА (НОВОЕ) ---
-// Считаем реальную ширину сетки шаров
-const GRID_REAL_WIDTH = COLUMN_COUNT * (bubbleRadius * 2);
-// Считаем отступ, чтобы центрировать сетку: (Ширина экрана - Ширина сетки) / 2
-const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
-
 const maxRows = 30; 
-const startRows = 9; // Статичные ряды
+const startRows = 9; 
 const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFC300', '#00FFFF'];
-
 const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5; 
 
 // --- СОСТОЯНИЕ ---
@@ -31,6 +25,8 @@ let grid = [];
 let particles = []; 
 let isGameOver = false;
 let animationId = null;
+
+let score = 0; // Текущий счет
 
 let playerX = gameWidth / 2;
 let playerY = gameHeight - bubbleRadius * 2;
@@ -47,7 +43,7 @@ let bullet = {
 
 let nextColor = getRandomColor();
 
-// --- БАЗОВЫЕ ФУНКЦИИ ---
+// --- ФУНКЦИИ ---
 
 function getRandomColor() {
     return colors[Math.floor(Math.random() * colors.length)];
@@ -57,19 +53,22 @@ function getColsCount(r) {
     return (r % 2 === 0) ? COLUMN_COUNT : (COLUMN_COUNT - 1);
 }
 
-// ПЕРЕВОД КООРДИНАТ С УЧЕТОМ ОТСТУПА (OFFSET_X)
 function getPixelCoords(r, c) {
     let shiftX = (r % 2) * bubbleRadius;
-    // Добавляем OFFSET_X ко всем координатам
+    const GRID_REAL_WIDTH = COLUMN_COUNT * (bubbleRadius * 2);
+    const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
+    
     let x = c * (bubbleRadius * 2) + bubbleRadius + shiftX + OFFSET_X;
     let y = r * ROW_HEIGHT + bubbleRadius;
     return {x, y};
 }
 
 function getGridCoords(x, y) {
+    const GRID_REAL_WIDTH = COLUMN_COUNT * (bubbleRadius * 2);
+    const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
+
     let gridY = Math.round((y - bubbleRadius) / ROW_HEIGHT);
     let shiftX = (gridY % 2) * bubbleRadius;
-    // Вычитаем OFFSET_X перед расчетом ячейки
     let gridX = Math.round((x - OFFSET_X - bubbleRadius - shiftX) / (bubbleRadius * 2));
     return {r: gridY, c: gridX};
 }
@@ -80,6 +79,11 @@ function getBubble(r, c) {
     let cols = getColsCount(r);
     if (c < 0 || c >= cols) return null;
     return grid[r][c];
+}
+
+function addScore(points) {
+    score += points;
+    scoreEl.innerText = score;
 }
 
 // --- ИГРОВОЙ ЦИКЛ ---
@@ -103,6 +107,9 @@ window.restartGame = function() {
     isGameOver = false;
     gameOverScreen.classList.add('hidden');
     gameOverScreen.querySelector('h1').innerText = "GAME OVER"; 
+    
+    score = 0;
+    scoreEl.innerText = "0";
     
     particles = [];
     bullet.active = false;
@@ -128,6 +135,7 @@ function checkWin() {
         let h1 = gameOverScreen.querySelector('h1');
         h1.innerText = "ПОБЕДА!";
         h1.style.color = "#2ed573";
+        finalScoreEl.innerText = score;
         gameOverScreen.classList.remove('hidden');
     }
 }
@@ -153,6 +161,7 @@ function doGameOver() {
     let h1 = gameOverScreen.querySelector('h1');
     h1.innerText = "GAME OVER";
     h1.style.color = "#ff4757";
+    finalScoreEl.innerText = score;
     gameOverScreen.classList.remove('hidden');
 }
 
@@ -322,6 +331,8 @@ function findAndRemoveMatches(startR, startC, color) {
                     x: p.x, y: p.y, color: b.color, 
                     type: 'pop', scale: 1, alpha: 1
                 });
+                // +10 очков за шарик
+                addScore(10);
             }
         }
         return true;
@@ -372,6 +383,8 @@ function dropFloatingBubbles() {
                         type: 'fall', 
                         dx: (Math.random()-0.5) * 6, dy: 0
                     });
+                    // +20 очков за упавший
+                    addScore(20);
                 }
             }
         }
