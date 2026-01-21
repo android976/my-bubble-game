@@ -1,26 +1,33 @@
 body {
     margin: 0;
     padding: 0;
-    background-color: #0d0d1a; /* Цвет фона за пределами игры (черный/темный) */
+    /* Цвет фона страницы (за пределами игры) - темный */
+    background-color: #0d0d1a; 
     overflow: hidden;
     height: 100vh;
     width: 100vw;
     display: flex;
-    justify-content: center; /* Центрируем игру по горизонтали */
-    align-items: center;     /* Центрируем игру по вертикали */
+    justify-content: center;
+    align-items: center;
     font-family: Arial, sans-serif;
     user-select: none;
     -webkit-user-select: none;
 }
 
-/* Ограничитель игрового поля */
+/* Ограничитель игрового поля + ТВОЙ ФОН */
 #game-wrapper {
-    position: relative; /* Важно! Дочерние элементы (счет) будут позиционироваться отсюда */
+    position: relative;
     width: 100%;
-    max-width: 480px; /* Максимальная ширина игры */
-    height: 100%;     /* На весь экран по высоте */
-    background-color: #16213e; /* Цвет поля игры */
-    box-shadow: 0 0 30px rgba(0,0,0,0.8); /* Тень вокруг игры */
+    max-width: 480px;
+    height: 100%;
+    
+    /* --- НАСТРОЙКИ ФОНА --- */
+    background-image: url('bp.jpg'); /* Имя твоего файла */
+    background-size: cover;          /* Растянуть, чтобы заполнить всё поле */
+    background-position: center;     /* Центрировать картинку */
+    background-repeat: no-repeat;    /* Не повторять */
+    
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
     overflow: hidden;
 }
 
@@ -28,35 +35,35 @@ canvas {
     display: block;
     width: 100%;
     height: 100%;
-    /* Сам canvas прозрачный, фон задаем wrapper-у */
+    /* Сам canvas прозрачный, чтобы было видно картинку под ним */
 }
 
 /* СЧЕТ */
 #score-container {
     position: absolute;
-    bottom: 15px;  /* Отступ снизу */
-    left: 15px;    /* Отступ слева */
+    bottom: 15px;
+    left: 15px;
     color: white;
     font-size: 20px;
     font-weight: bold;
     font-family: 'Arial Black', sans-serif;
-    z-index: 10;   /* Поверх canvas */
-    text-shadow: 1px 1px 2px black;
+    z-index: 10;
+    text-shadow: 2px 2px 4px black; /* Тень, чтобы текст читался на любой картинке */
     pointer-events: none;
 }
 
 #score-val {
-    color: #ff9f43; /* Оранжевый цвет цифр */
+    color: #ff9f43;
 }
 
-/* Экран проигрыша */
+/* Экран проигрыша/победы */
 #game-over-screen {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.85); /* Полупрозрачный черный поверх картинки */
     display: flex;
     flex-direction: column;
     justify-content: center;
