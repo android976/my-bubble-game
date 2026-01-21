@@ -8,19 +8,24 @@
 </head>
 <body>
 
-    <!-- Счет в левом нижнем углу -->
-    <div id="score-container">
-        Счет: <span id="score-val">0</span>
-    </div>
+    <!-- Главный контейнер игры -->
+    <div id="game-wrapper">
+        
+        <!-- Счет внутри игрового поля (слева внизу) -->
+        <div id="score-container">
+            Счет: <span id="score-val">0</span>
+        </div>
 
-    <!-- Экран проигрыша -->
-    <div id="game-over-screen" class="hidden">
-        <h1>GAME OVER</h1>
-        <p>Ваш результат: <span id="final-score">0</span></p>
-        <button onclick="restartGame()">ИГРАТЬ СНОВА</button>
-    </div>
+        <!-- Экран проигрыша -->
+        <div id="game-over-screen" class="hidden">
+            <h1>GAME OVER</h1>
+            <p>Ваш результат: <span id="final-score">0</span></p>
+            <button onclick="restartGame()">ИГРАТЬ СНОВА</button>
+        </div>
 
-    <canvas id="gameCanvas"></canvas>
+        <!-- Холст -->
+        <canvas id="gameCanvas"></canvas>
+    </div>
 
     <script src="script.js"></script>
 </body>
