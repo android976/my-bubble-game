@@ -10,12 +10,18 @@ canvas.width = gameWidth;
 canvas.height = gameHeight;
 
 const COLUMN_COUNT = 11; 
+// 0.96 - чтобы шарики визуально не слипались
 const bubbleRadius = (gameWidth / COLUMN_COUNT / 2) * 0.96; 
 const ROW_HEIGHT = bubbleRadius * Math.sqrt(3);
 
+// --- ЦЕНТРОВКА ЭКРАНА (НОВОЕ) ---
+// Считаем реальную ширину сетки шаров
+const GRID_REAL_WIDTH = COLUMN_COUNT * (bubbleRadius * 2);
+// Считаем отступ, чтобы центрировать сетку: (Ширина экрана - Ширина сетки) / 2
+const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
+
 const maxRows = 30; 
-// Увеличили стартовые ряды, так как они больше не добавляются
-const startRows = 9; 
+const startRows = 9; // Статичные ряды
 const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFC300', '#00FFFF'];
 
 const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5; 
@@ -48,13 +54,14 @@ function getRandomColor() {
 }
 
 function getColsCount(r) {
-    // Ряды жестко зафиксированы: Четный 11, Нечетный 10
     return (r % 2 === 0) ? COLUMN_COUNT : (COLUMN_COUNT - 1);
 }
 
+// ПЕРЕВОД КООРДИНАТ С УЧЕТОМ ОТСТУПА (OFFSET_X)
 function getPixelCoords(r, c) {
     let shiftX = (r % 2) * bubbleRadius;
-    let x = c * (bubbleRadius * 2) + bubbleRadius + shiftX;
+    // Добавляем OFFSET_X ко всем координатам
+    let x = c * (bubbleRadius * 2) + bubbleRadius + shiftX + OFFSET_X;
     let y = r * ROW_HEIGHT + bubbleRadius;
     return {x, y};
 }
@@ -62,7 +69,8 @@ function getPixelCoords(r, c) {
 function getGridCoords(x, y) {
     let gridY = Math.round((y - bubbleRadius) / ROW_HEIGHT);
     let shiftX = (gridY % 2) * bubbleRadius;
-    let gridX = Math.round((x - bubbleRadius - shiftX) / (bubbleRadius * 2));
+    // Вычитаем OFFSET_X перед расчетом ячейки
+    let gridX = Math.round((x - OFFSET_X - bubbleRadius - shiftX) / (bubbleRadius * 2));
     return {r: gridY, c: gridX};
 }
 
@@ -94,7 +102,6 @@ function createGrid() {
 window.restartGame = function() {
     isGameOver = false;
     gameOverScreen.classList.add('hidden');
-    // Меняем текст на экране проигрыша обратно, если выиграли
     gameOverScreen.querySelector('h1').innerText = "GAME OVER"; 
     
     particles = [];
@@ -106,7 +113,6 @@ window.restartGame = function() {
     draw();
 }
 
-// Проверка победы (если не осталось активных шаров)
 function checkWin() {
     let hasBubbles = false;
     for (let r = 0; r < maxRows; r++) {
@@ -250,7 +256,6 @@ function snapBubble() {
         if (found) { bestR = found.r; bestC = found.c; }
     }
 
-    // Дополнительная проверка границ
     if (bestR >= 0 && bestR < maxRows) {
         let maxCols = getColsCount(bestR);
         if (bestC >= maxCols) bestC = maxCols - 1;
@@ -267,12 +272,9 @@ function snapBubble() {
         if (popped) {
             dropFloatingBubbles();
         }
-        
-        // ВАЖНО: Мы убрали addNewRow(), больше никаких сдвигов!
-        // Шары просто копятся, если не лопаются.
     }
     
-    checkWin(); // Проверяем, не победил ли игрок
+    checkWin(); 
     checkGameOver();
     reloadGun();
 }
