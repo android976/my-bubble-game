@@ -8,18 +8,14 @@
 </head>
 <body>
 
-    <!-- Интерфейс поверх игры -->
-    <div id="ui-layer">
-        <div id="score-board">Осталось ходов до сдвига: <span id="moves-left">5</span></div>
-    </div>
-
     <!-- Экран проигрыша (скрыт по умолчанию) -->
     <div id="game-over-screen" class="hidden">
         <h1>GAME OVER</h1>
-        <p>Шарики захватили базу</p>
-        <button onclick="restartGame()">ПОПРОБОВАТЬ ЕЩЕ РАЗ</button>
+        <p>Шарики слишком низко!</p>
+        <button onclick="restartGame()">ПОПРОБОВАТЬ СНОВА</button>
     </div>
 
+    <!-- Холст игры -->
     <canvas id="gameCanvas"></canvas>
 
     <script src="script.js"></script>
