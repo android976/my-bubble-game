@@ -10,6 +10,7 @@ canvas.width = gameWidth;
 canvas.height = gameHeight;
 
 const COLUMN_COUNT = 11; 
+// Коэффициент 0.98 создает микро-зазоры, чтобы шары не слипались визуально
 const bubbleRadius = (gameWidth / COLUMN_COUNT / 2) * 0.98; 
 const ROW_HEIGHT = bubbleRadius * 1.74;
 
@@ -25,6 +26,7 @@ let grid = [];
 let particles = []; 
 let shotsFired = 0; 
 let isGameOver = false;
+let animationId = null; // Для контроля игрового цикла
 
 let playerX = gameWidth / 2;
 let playerY = gameHeight - bubbleRadius * 2;
@@ -41,12 +43,14 @@ let bullet = {
 
 let nextColor = getRandomColor();
 
-// --- БЕЗОПАСНЫЙ ДОСТУП К СЕТКЕ (ЗАЩИТА ОТ ЗАВИСАНИЙ) ---
-// Эта функция предотвращает ошибки "Cannot read property of undefined"
+// --- БЕЗОПАСНЫЙ ДОСТУП К ДАННЫМ ---
+
 function getBubble(r, c) {
     if (r < 0 || r >= maxRows) return null;
+    // Проверка существования ряда
     if (!grid[r]) return null;
     let cols = getColsCount(r);
+    // Проверка границ колонок
     if (c < 0 || c >= cols) return null;
     return grid[r][c];
 }
@@ -56,6 +60,7 @@ function getRandomColor() {
 }
 
 function getColsCount(r) {
+    // Четный ряд: 11, Нечетный: 10
     return (r % 2 === 0) ? COLUMN_COUNT : (COLUMN_COUNT - 1);
 }
 
@@ -95,25 +100,34 @@ window.restartGame = function() {
     gameOverScreen.classList.add('hidden');
     shotsFired = 0;
     particles = [];
+    bullet.active = false;
+    
     createGrid();
     reloadGun();
-    // Перезапуск цикла отрисовки, если он упал
-    requestAnimationFrame(draw);
+    
+    // Перезапуск цикла, отменяем старый, чтобы не было ускорения
+    if (animationId) cancelAnimationFrame(animationId);
+    draw();
 }
 
 function addNewRow() {
-    grid.pop(); 
+    grid.pop(); // Удаляем нижний ряд
     let newRow = [];
+    // Новый ряд всегда встает на индекс 0 (четный), значит он полный
     for (let c = 0; c < COLUMN_COUNT; c++) {
         newRow[c] = { color: getRandomColor(), active: true };
     }
-    grid.unshift(newRow); 
+    grid.unshift(newRow); // Вставляем сверху
+    
     cleanEdges();
+    // Сразу проверяем гравитацию, так как сдвиг мог "отрезать" опору у шаров
+    dropFloatingBubbles();
     checkGameOver();
 }
 
 function cleanEdges() {
     for (let r = 0; r < maxRows; r++) {
+        // Если ряд нечетный (10 мест), но там лежит массив из 11 элементов
         if (r % 2 !== 0) {
             if (grid[r] && grid[r][COLUMN_COUNT - 1]) {
                 grid[r][COLUMN_COUNT - 1].active = false;
@@ -147,6 +161,7 @@ function doGameOver() {
 
 function shoot() {
     if (bullet.active || isGameOver) return;
+    // Ждем пока упадут шары (оптимизация)
     if (particles.some(p => p.type === 'fall')) return; 
 
     let angle = Math.atan2(aimY - playerY, aimX - playerX);
@@ -160,7 +175,7 @@ function update() {
     if (isGameOver) return;
 
     if (bullet.active) {
-        // Суб-шаги для точности (убираем пролеты сквозь стены)
+        // Делим движение на 4 под-шага для точности
         const STEPS = 4; 
         const stepX = bullet.dx / STEPS;
         const stepY = bullet.dy / STEPS;
@@ -172,11 +187,11 @@ function update() {
             // Стены
             if (bullet.x - bubbleRadius < 0) {
                 bullet.x = bubbleRadius;
-                bullet.dx = Math.abs(bullet.dx); // Всегда летим вправо
+                bullet.dx = Math.abs(bullet.dx); // Отражение вправо
             }
             if (bullet.x + bubbleRadius > gameWidth) {
                 bullet.x = gameWidth - bubbleRadius;
-                bullet.dx = -Math.abs(bullet.dx); // Всегда летим влево
+                bullet.dx = -Math.abs(bullet.dx); // Отражение влево
             }
 
             // Потолок
@@ -198,6 +213,7 @@ function update() {
 }
 
 function checkCollision() {
+    // Оптимизация: проверяем только ближайшие ряды к пуле
     let approxR = Math.floor(bullet.y / ROW_HEIGHT);
     let startR = Math.max(0, approxR - 2);
     let endR = Math.min(maxRows, approxR + 2);
@@ -209,7 +225,7 @@ function checkCollision() {
             if (b && b.active) {
                 let p = getPixelCoords(r, c);
                 let distSq = (bullet.x - p.x)**2 + (bullet.y - p.y)**2;
-                // Чуть уменьшенный радиус столкновения (-4) для "мягкости" попадания
+                // (2*R - 4)^2 : -4 пикселя допуска для мягкости
                 if (distSq < (bubbleRadius * 2 - 4)**2) { 
                     return true;
                 }
@@ -222,18 +238,18 @@ function checkCollision() {
 function snapBubble() {
     bullet.active = false;
 
-    // 1. Находим "идеальное" место
+    // 1. Ищем расчетную ячейку
     let coords = getGridCoords(bullet.x, bullet.y);
     let bestR = coords.r;
     let bestC = coords.c;
 
-    // 2. Если место занято, ищем ближайшего свободного соседа (Магнит)
+    // 2. Если она занята или недопустима, ищем ближайшую свободную в радиусе 1
     if (!isValidEmpty(bestR, bestC)) {
         let minDist = Infinity;
         let found = null;
 
         for (let r = bestR - 1; r <= bestR + 1; r++) {
-            let cols = getColsCount(r); // Безопасно, даже если r < 0
+            let cols = getColsCount(r);
             for (let c = 0; c < cols; c++) {
                 if (isValidEmpty(r, c)) {
                     let p = getPixelCoords(r, c);
@@ -248,29 +264,27 @@ function snapBubble() {
         if (found) { bestR = found.r; bestC = found.c; }
     }
 
-    // Финальная проверка перед записью
+    // Ставим шар
     let targetBubble = getBubble(bestR, bestC);
-    
-    // Если ячейка существует и НЕ активна (пустая) - ставим шар
     if (targetBubble && !targetBubble.active) {
         targetBubble.active = true;
         targetBubble.color = bullet.color;
         
+        // Удаляем совпадения
         let popped = findAndRemoveMatches(bestR, bestC, bullet.color);
+        
+        // Включаем гравитацию, если что-то лопнуло
         if (popped) {
             dropFloatingBubbles();
         }
 
+        // Логика сдвига рядов
         if (shotsFired % SHOTS_TO_ADD_ROW === 0) {
             setTimeout(() => {
                 addNewRow();
-                dropFloatingBubbles();
-            }, 200);
+                // Гравитация не нужна здесь, так как addNewRow вызывает её внутри себя
+            }, 250);
         }
-    } else {
-        // Если места не нашлось (редкий баг), просто перезаряжаем
-        // Чтобы игра не зависла
-        console.warn("Не удалось найти место для шара");
     }
     
     checkGameOver();
@@ -282,7 +296,7 @@ function isValidEmpty(r, c) {
     return (b !== null && !b.active);
 }
 
-// --- УДАЛЕНИЕ (BFS) ---
+// --- ПОИСК СОВПАДЕНИЙ (BFS) ---
 
 function findAndRemoveMatches(startR, startC, color) {
     let cluster = [];
@@ -294,6 +308,7 @@ function findAndRemoveMatches(startR, startC, color) {
         let {r, c} = queue.shift();
         let b = getBubble(r, c);
         
+        // Собираем кластер
         if (b && b.active && b.color === color) {
             cluster.push({r, c});
 
@@ -333,7 +348,7 @@ function dropFloatingBubbles() {
     let visited = new Set();
     let queue = [];
 
-    // 1. Корни на потолке
+    // 1. Находим все корни (шары на потолке)
     let cols0 = getColsCount(0);
     for (let c = 0; c < cols0; c++) {
         let b = getBubble(0, c);
@@ -343,7 +358,7 @@ function dropFloatingBubbles() {
         }
     }
 
-    // 2. Ищем всё, что держится
+    // 2. Распространяем сигнал "я держусь" на всех соседей
     while (queue.length > 0) {
         let {r, c} = queue.shift();
         let neighbors = getNeighbors(r, c);
@@ -360,7 +375,7 @@ function dropFloatingBubbles() {
         }
     }
 
-    // 3. Всё остальное падает
+    // 3. Все шары, до которых сигнал не дошел - падают
     for (let r = 0; r < maxRows; r++) {
         let cols = getColsCount(r);
         for (let c = 0; c < cols; c++) {
@@ -368,7 +383,7 @@ function dropFloatingBubbles() {
             if (b && b.active) {
                 let id = r + "-" + c;
                 if (!visited.has(id)) {
-                    b.active = false; 
+                    b.active = false; // Отцепляем
                     let p = getPixelCoords(r, c);
                     particles.push({
                         x: p.x, y: p.y, color: b.color, 
@@ -382,11 +397,11 @@ function dropFloatingBubbles() {
 }
 
 function getNeighbors(r, c) {
-    // Безопасное получение координат соседей
+    // Сдвиги для гексагональной сетки
     let offsets;
-    if (r % 2 === 0) {
+    if (r % 2 === 0) { // Четный ряд
         offsets = [{r:r,c:c-1}, {r:r,c:c+1}, {r:r-1,c:c-1}, {r:r-1,c:c}, {r:r+1,c:c-1}, {r:r+1,c:c}];
-    } else {
+    } else { // Нечетный ряд
         offsets = [{r:r,c:c-1}, {r:r,c:c+1}, {r:r-1,c:c}, {r:r-1,c:c+1}, {r:r+1,c:c}, {r:r+1,c:c+1}];
     }
     return offsets;
@@ -439,7 +454,6 @@ function drawTrajectory() {
 }
 
 function draw() {
-    // Оборачиваем в try-catch, чтобы игра не зависла намертво при ошибке
     try {
         update();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -509,13 +523,12 @@ function draw() {
             ctx.stroke();
         }
     } catch (e) {
-        console.error("Ошибка в игровом цикле:", e);
-        // Если произошла ошибка, можно попробовать сбросить пулю, чтобы разморозить игру
+        console.error(e);
+        // Аварийный сброс, чтобы не зависало
         bullet.active = false;
-        reloadGun();
     }
 
-    requestAnimationFrame(draw);
+    animationId = requestAnimationFrame(draw);
 }
 
 function reloadGun() {
@@ -543,5 +556,7 @@ canvas.addEventListener('click', () => shoot());
 canvas.addEventListener('touchend', () => shoot());
 
 window.addEventListener('resize', () => location.reload());
+
+// СТАРТ
 createGrid();
 draw();
