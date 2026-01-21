@@ -8,14 +8,18 @@
 </head>
 <body>
 
-    <!-- Экран проигрыша (скрыт по умолчанию) -->
-    <div id="game-over-screen" class="hidden">
-        <h1>GAME OVER</h1>
-        <p>Шарики слишком низко!</p>
-        <button onclick="restartGame()">ПОПРОБОВАТЬ СНОВА</button>
+    <!-- Счет в левом нижнем углу -->
+    <div id="score-container">
+        Счет: <span id="score-val">0</span>
     </div>
 
-    <!-- Холст игры -->
+    <!-- Экран проигрыша -->
+    <div id="game-over-screen" class="hidden">
+        <h1>GAME OVER</h1>
+        <p>Ваш результат: <span id="final-score">0</span></p>
+        <button onclick="restartGame()">ИГРАТЬ СНОВА</button>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
 
     <script src="script.js"></script>
