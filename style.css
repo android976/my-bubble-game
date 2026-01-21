@@ -1,35 +1,22 @@
 body {
     margin: 0;
     padding: 0;
-    background-color: #1a1a2e;
+    background-color: #1a1a2e; /* Темно-синий космос */
     overflow: hidden;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
     font-family: Arial, sans-serif;
-    color: white;
+    user-select: none; /* Запрет выделения текста */
+    -webkit-user-select: none;
 }
 
 canvas {
     background-color: #16213e;
     box-shadow: 0 0 20px rgba(0,0,0,0.5);
-    touch-action: none; 
+    touch-action: none; /* Важно для телефонов */
     display: block;
-    z-index: 1;
-}
-
-/* Интерфейс */
-#ui-layer {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10;
-    pointer-events: none; /* Чтобы клики проходили сквозь текст */
-    text-shadow: 1px 1px 2px black;
-    font-weight: bold;
-    font-size: 18px;
 }
 
 /* Экран проигрыша */
@@ -45,6 +32,7 @@ canvas {
     justify-content: center;
     align-items: center;
     z-index: 20;
+    color: white;
 }
 
 .hidden {
@@ -55,18 +43,26 @@ h1 {
     font-size: 40px;
     color: #ff4757;
     margin-bottom: 10px;
+    text-shadow: 2px 2px 0px #000;
+}
+
+p {
+    font-size: 18px;
+    margin-bottom: 30px;
+    color: #ccc;
 }
 
 button {
     padding: 15px 30px;
-    font-size: 18px;
+    font-size: 20px;
+    font-weight: bold;
     background-color: #2ed573;
     color: white;
     border: none;
     border-radius: 50px;
     cursor: pointer;
-    box-shadow: 0 4px 15px rgba(46, 213, 115, 0.4);
-    transition: transform 0.2s;
+    box-shadow: 0 5px 15px rgba(46, 213, 115, 0.4);
+    transition: transform 0.1s;
 }
 
 button:active {
