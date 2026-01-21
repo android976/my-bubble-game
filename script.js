@@ -2,25 +2,24 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // --- НАСТРОЙКИ ---
-// Определяем ширину игрового поля (либо весь экран, либо макс. 480px для ПК)
 let gameWidth = window.innerWidth > 480 ? 480 : window.innerWidth;
 let gameHeight = window.innerHeight;
 
 canvas.width = gameWidth;
 canvas.height = gameHeight;
 
-// Делаем расчет размеров динамическим
-const COLUMN_COUNT = 8; // Всегда 8 шариков в ширину
-// Радиус шарика = ширина экрана / количество / 2
+// 1. Уменьшаем размер шаров, увеличивая количество колонок
+// Было 8, ставим 11. Чем больше число, тем мельче шарики.
+const COLUMN_COUNT = 11; 
 const bubbleRadius = gameWidth / COLUMN_COUNT / 2; 
 
-// Параметры сетки
-const rows = 9; 
-const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFC300'];
+// 2. Делаем 4 ряда со старта
+const rows = 4; 
+const colors = ['#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFC300', '#00FFFF']; // Добавил голубой цвет
 
-let grid = []; // Сетка
+let grid = []; 
 let playerX = gameWidth / 2;
-let playerY = gameHeight - bubbleRadius * 2; // Чуть выше низа
+let playerY = gameHeight - bubbleRadius * 3; // Чуть поднял пушку
 let currentBubbleColor = getRandomColor();
 
 // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
@@ -32,8 +31,12 @@ function getRandomColor() {
 function createGrid() {
     for (let r = 0; r < rows; r++) {
         grid[r] = [];
-        for (let c = 0; c < COLUMN_COUNT; c++) {
-            // Делаем небольшую "пустоту" внизу сетки для красоты, можно убрать условие
+        // 3. Логика "Сот": 
+        // Если ряд четный (0, 2...) -> полный набор шариков
+        // Если ряд нечетный (1, 3...) -> на 1 шарик меньше, чтобы влезли в границы
+        let currentColumns = (r % 2 === 0) ? COLUMN_COUNT : (COLUMN_COUNT - 1);
+
+        for (let c = 0; c < currentColumns; c++) {
             grid[r][c] = { 
                 x: 0, 
                 y: 0, 
@@ -44,52 +47,51 @@ function createGrid() {
     }
 }
 
-// Рисуем красивый шарик с бликом
+// Рисование шарика с бликом
 function drawCircle(x, y, radius, color) {
     ctx.beginPath();
-    ctx.arc(x, y, radius - 1, 0, Math.PI * 2); // -1 для крошечного зазора
+    ctx.arc(x, y, radius - 1, 0, Math.PI * 2);
     ctx.fillStyle = color;
     ctx.fill();
     ctx.closePath();
 
-    // Добавляем блик (светлое пятнышко), чтобы казалось объемным
+    // Блик
     ctx.beginPath();
     ctx.arc(x - radius * 0.3, y - radius * 0.3, radius / 3, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'; // Полупрозрачный белый
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.fill();
     ctx.closePath();
 }
 
-// --- ОСНОВНОЙ ЦИКЛ ОТРИСОВКИ ---
+// --- ОТРИСОВКА ---
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Рисуем сетку
-    for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < COLUMN_COUNT; c++) {
+    for (let r = 0; r < grid.length; r++) {
+        // Определяем, сколько шариков должно быть в этом ряду
+        // (нужно для цикла отрисовки, так как массив может быть разреженным)
+        let currentRowLength = grid[r].length;
+
+        for (let c = 0; c < currentRowLength; c++) {
             let bubble = grid[r][c];
             
-            if (bubble.active) {
-                // --- ВАЖНАЯ МАТЕМАТИКА СОТ ---
-                // Сдвиг по горизонтали для нечетных рядов
+            if (bubble && bubble.active) {
+                // Сдвиг для нечетных рядов (точно на радиус)
                 let shiftX = (r % 2) * bubbleRadius;
                 
                 // Координата X
+                // Для четных: 0, 2r, 4r... + радиус (центр)
+                // Для нечетных: сдвиг + 0, 2r... + радиус
                 let x = c * (bubbleRadius * 2) + bubbleRadius + shiftX;
                 
-                // Координата Y: ряды должны входить друг в друга.
-                // Расстояние между центрами рядов меньше диаметра. 
-                // Используем коэффициент 1.74 (это примерно корень из 3)
+                // Координата Y (ряды входят друг в друга)
                 let y = r * (bubbleRadius * 1.74) + bubbleRadius;
 
-                // Сохраняем координаты в объект (пригодится для коллизий)
+                // Обновляем координаты в памяти
                 bubble.x = x;
                 bubble.y = y;
 
-                // Проверка: не рисуем шарик, если он вылезает за правый край (из-за сдвига)
-                if (x + bubbleRadius <= gameWidth + bubbleRadius) { 
-                    drawCircle(x, y, bubbleRadius, bubble.color);
-                }
+                drawCircle(x, y, bubbleRadius, bubble.color);
             }
         }
     }
@@ -101,8 +103,10 @@ function draw() {
 }
 
 // --- СТАРТ ---
-// Если экран изменили (повернули телефон), перезагружаем страницу для пересчета размеров
-window.addEventListener('resize', () => location.reload());
+window.addEventListener('resize', () => {
+    // Перезагрузка при повороте экрана, чтобы пересчитать размеры
+    location.reload(); 
+});
 
 createGrid();
 draw();
