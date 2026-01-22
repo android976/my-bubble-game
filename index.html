@@ -10,7 +10,7 @@
 
     <div id="game-wrapper">
         
-        <!-- СТАРТОВЫЙ ЭКРАН (ОФФЕР) -->
+        <!-- СТАРТОВЫЙ ЭКРАН -->
         <div id="start-screen">
             <div class="offer-card">
                 <h1>SPACE BUBBLES</h1>
@@ -35,16 +35,17 @@
             </div>
         </div>
 
-        <!-- Интерфейс счета -->
+        <!-- СЧЕТ -->
         <div id="score-container">
             Счет: <span id="score-val">0</span>
         </div>
 
-        <!-- Экран проигрыша -->
+        <!-- ЭКРАН РЕЗУЛЬТАТА (ФИНАЛ) -->
         <div id="game-over-screen" class="hidden">
-            <h1>GAME OVER</h1>
-            <p>Ваш результат: <span id="final-score">0</span></p>
-            <button onclick="restartGame()">ИГРАТЬ СНОВА</button>
+            <!-- Сюда JS будет вставлять контент (проигрыш или промокод) -->
+            <div id="game-over-content" class="offer-card">
+                <!-- Контент генерируется в script.js -->
+            </div>
         </div>
 
         <canvas id="gameCanvas"></canvas>
