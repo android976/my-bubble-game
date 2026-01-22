@@ -24,8 +24,14 @@ const maxRows = 30;
 const startRows = 9; 
 const SHOTS_TO_ADD_ROW = 5; 
 
+// 6 ЦВЕТОВ (Классика)
 const colors = [
-    '#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFC300', '#00FFFF', '#ff9f43', '#c8d6e5'
+    '#FF5733', // Red
+    '#33FF57', // Green
+    '#3357FF', // Blue
+    '#F333FF', // Purple
+    '#FFC300', // Yellow
+    '#00FFFF'  // Cyan
 ];
 
 const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5; 
@@ -37,10 +43,7 @@ let isGameOver = false;
 let isGameStarted = false;
 let animationId = null;
 
-// ВАЖНО: Эта переменная определяет, сдвинута ли сетка.
-// 0 = Ряд 0 широкий (11), Ряд 1 узкий (10)
-// 1 = Ряд 0 узкий (10), Ряд 1 широкий (11)
-let rowOffset = 0; 
+let rowOffset = 0; // Для плавающей сетки
 
 let score = 0; 
 let shotsFired = 0;
@@ -65,24 +68,21 @@ startBtn.addEventListener('click', () => {
     startScreen.classList.add('hidden');
 });
 
-// --- СИСТЕМНЫЕ ФУНКЦИИ (С УЧЕТОМ rowOffset) ---
+// --- СИСТЕМНЫЕ ФУНКЦИИ ---
 
 function getRandomColor() {
     return colors[Math.floor(Math.random() * colors.length)];
 }
 
-// Определяет тип ряда: 0 - широкий (11), 1 - узкий (10)
 function getRowType(r) {
     return (r + rowOffset) % 2;
 }
 
 function getColsCount(r) {
-    // Если тип 0 - то 11 колонок, если 1 - то 10
     return getRowType(r) === 0 ? COLUMN_COUNT : (COLUMN_COUNT - 1);
 }
 
 function getPixelCoords(r, c) {
-    // Если ряд узкий (тип 1), сдвигаем его вправо на радиус
     let isNarrow = getRowType(r) === 1;
     let shiftX = isNarrow ? bubbleRadius : 0;
     
@@ -93,8 +93,6 @@ function getPixelCoords(r, c) {
 
 function getGridCoords(x, y) {
     let gridY = Math.round((y - bubbleRadius) / ROW_HEIGHT);
-    
-    // Обратный расчет с учетом типа ряда
     let isNarrow = getRowType(gridY) === 1;
     let shiftX = isNarrow ? bubbleRadius : 0;
     
@@ -119,14 +117,13 @@ function addScore(points) {
 
 function createGrid() {
     grid = [];
-    rowOffset = 0; // Сброс смещения
+    rowOffset = 0; 
     
     for (let r = 0; r < maxRows; r++) {
         grid[r] = [];
         let cols = getColsCount(r);
-        for (let c = 0; c < COLUMN_COUNT; c++) { // Создаем массив с запасом
+        for (let c = 0; c < COLUMN_COUNT; c++) { 
             let isActive = (c < cols && r < startRows);
-            // Anti-Cluster генерация
             let color = getRandomColor();
             if (isActive && c > 0 && grid[r][c-1].color === color) {
                 if (Math.random() > 0.3) color = getRandomColor();
@@ -153,18 +150,11 @@ window.restartGame = function() {
     draw();
 }
 
-// --- НОВАЯ ЛОГИКА ДОБАВЛЕНИЯ РЯДА (БЕЗ УНИЧТОЖЕНИЯ) ---
+// --- ДОБАВЛЕНИЕ РЯДА (ПЛАВАЮЩАЯ СЕТКА) ---
 function addNewRow() {
-    // 1. Удаляем низ
     grid.pop(); 
-    
-    // 2. МЕНЯЕМ ФАЗУ СЕТКИ
-    // Теперь то, что было "широким" рядом 0, станет "широким" рядом 1.
-    // Мы инвертируем offset, чтобы математика координат подстроилась под сдвиг.
     rowOffset = 1 - rowOffset; 
     
-    // 3. Создаем новый ряд.
-    // Он встанет на индекс 0. Его ширина зависит от НОВОГО rowOffset.
     let newRowCols = getColsCount(0);
     let newRow = [];
     
@@ -179,14 +169,8 @@ function addNewRow() {
         };
     }
     
-    // 4. Вставляем
     grid.unshift(newRow); 
     
-    // 5. НИКАКОЙ ЗАЧИСТКИ КРАЕВ!
-    // Благодаря rowOffset, шары, которые сдвинулись вниз,
-    // по-прежнему "влезают" в свои ряды, потому что математика рядов сдвинулась вместе с ними.
-    
-    // Проверяем гравитацию на случай, если новый ряд создал разрыв (маловероятно, но нужно)
     dropFloatingBubbles(); 
     checkGameOver();
 }
@@ -462,18 +446,13 @@ function dropFloatingBubbles() {
     }
 }
 
-// --- СОСЕДИ (ЗАВИСЯТ ОТ rowOffset) ---
 function getNeighbors(r, c) {
     let offsets;
-    // Определяем, четный ли ряд ВИЗУАЛЬНО (а не по индексу)
-    // Тип 0 = Широкий (11), Тип 1 = Узкий (10)
     let isNarrow = getRowType(r) === 1;
 
     if (!isNarrow) { 
-        // Для широкого ряда (11)
         offsets = [[0,-1], [0,1], [-1,-1], [-1,0], [1,-1], [1,0]];
     } else { 
-        // Для узкого ряда (10)
         offsets = [[0,-1], [0,1], [-1,0], [-1,1], [1,0], [1,1]];
     }
 
