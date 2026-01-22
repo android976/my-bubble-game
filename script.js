@@ -23,21 +23,20 @@ const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
 const maxRows = 30; 
 const startRows = 10; // Чуть больше рядов на старте
 
-// --- УСЛОЖНЕНИЕ: 10 ЦВЕТОВ ---
+// --- ВОЗВРАТ: 8 ЦВЕТОВ ---
 const colors = [
-    '#FF5733', // Красный
-    '#33FF57', // Зеленый
-    '#3357FF', // Синий
-    '#F333FF', // Фиолетовый
-    '#FFC300', // Желтый
-    '#00FFFF', // Голубой
-    '#ff9f43', // Оранжевый
-    '#c8d6e5', // Светло-серый
-    '#576574', // Темно-серый (New)
-    '#22a6b3'  // Бирюзовый (New)
+    '#FF5733', // Red
+    '#33FF57', // Green
+    '#3357FF', // Blue
+    '#F333FF', // Purple
+    '#FFC300', // Yellow
+    '#00FFFF', // Cyan
+    '#ff9f43', // Orange
+    '#c8d6e5'  // Grey
 ];
 
-const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5; 
+// Линия смерти ближе (меньше права на ошибку)
+const LIMIT_LINE_Y = gameHeight - bubbleRadius * 6; 
 
 // --- СОСТОЯНИЕ ---
 let grid = []; 
@@ -63,7 +62,7 @@ let bullet = {
 
 let nextColor = getRandomColor();
 
-// --- ОБРАБОТЧИК КНОПКИ "НАЧАТЬ" ---
+// --- ОБРАБОТЧИК КНОПКИ ---
 startBtn.addEventListener('click', () => {
     isGameStarted = true;
     startScreen.classList.add('hidden');
@@ -116,13 +115,11 @@ function createGrid() {
         for (let c = 0; c < COLUMN_COUNT; c++) {
             let isActive = (c < cols && r < startRows);
             
-            // --- УСЛОЖНЕНИЕ: ХАОТИЧНАЯ ГЕНЕРАЦИЯ ---
-            // Стараемся не ставить такой же цвет, как слева, чтобы не было халявных групп
+            // --- УСЛОЖНЕНИЕ: ГЕНЕРАЦИЯ БЕЗ ГОТОВЫХ ГРУПП ---
             let color = getRandomColor();
+            // Если слева стоит такой же цвет - меняем (с шансом 80%)
             if (isActive && c > 0 && grid[r][c-1].color === color) {
-                // Если цвет совпал с соседом слева, пробуем другой (50% шанс сменить)
-                // Не делаем жесткий запрет, чтобы иногда маленькие группы все же были
-                color = getRandomColor();
+                if (Math.random() > 0.2) color = getRandomColor();
             }
 
             grid[r][c] = { 
@@ -136,7 +133,6 @@ function createGrid() {
 window.restartGame = function() {
     isGameOver = false;
     gameOverScreen.classList.add('hidden');
-    gameOverScreen.querySelector('h1').innerText = "GAME OVER"; 
     
     score = 0;
     scoreEl.innerText = "0";
@@ -461,18 +457,15 @@ function drawTrajectory() {
     
     ctx.beginPath();
     ctx.moveTo(simX, simY);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; // Полупрозрачный
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 15]); 
 
-    for (let i = 0; i < 60; i++) {
+    // --- УСЛОЖНЕНИЕ: КОРОТКИЙ ПРИЦЕЛ ---
+    // i < 20 означает, что линия будет короткой и не дойдет до стены
+    for (let i = 0; i < 20; i++) {
         simX += dx * 15;
         simY += dy * 15;
-        if (simX < bubbleRadius || simX > gameWidth - bubbleRadius) {
-            dx = -dx;
-            simX += dx * 15;
-        }
-        if (simY < 0) break;
         ctx.lineTo(simX, simY);
     }
     ctx.stroke();
