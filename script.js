@@ -3,6 +3,8 @@ const ctx = canvas.getContext('2d');
 const gameOverScreen = document.getElementById('game-over-screen');
 const scoreEl = document.getElementById('score-val');
 const finalScoreEl = document.getElementById('final-score');
+const startScreen = document.getElementById('start-screen');
+const startBtn = document.getElementById('start-btn');
 
 // --- НАСТРОЙКИ ---
 let gameWidth = window.innerWidth > 480 ? 480 : window.innerWidth;
@@ -15,23 +17,14 @@ const COLUMN_COUNT = 11;
 const bubbleRadius = (gameWidth / COLUMN_COUNT / 2) * 0.96; 
 const ROW_HEIGHT = bubbleRadius * Math.sqrt(3);
 
-// Центровка
 const GRID_REAL_WIDTH = COLUMN_COUNT * (bubbleRadius * 2);
 const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
 
 const maxRows = 30; 
-const startRows = 9; // Вернули как было
-
-// --- УСЛОЖНЕНИЕ: 8 ЦВЕТОВ ---
+const startRows = 9; 
 const colors = [
-    '#FF5733', // Red
-    '#33FF57', // Green
-    '#3357FF', // Blue
-    '#F333FF', // Purple
-    '#FFC300', // Yellow
-    '#00FFFF', // Cyan
-    '#ff9f43', // Orange (Новый)
-    '#c8d6e5'  // Light Grey (Новый, хорошо виден на темном)
+    '#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFC300', '#00FFFF',
+    '#ff9f43', '#c8d6e5'
 ];
 
 const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5; 
@@ -40,6 +33,7 @@ const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5;
 let grid = []; 
 let particles = []; 
 let isGameOver = false;
+let isGameStarted = false; // Игра на паузе, пока висит оффер
 let animationId = null;
 
 let score = 0; 
@@ -58,6 +52,12 @@ let bullet = {
 };
 
 let nextColor = getRandomColor();
+
+// --- ОБРАБОТЧИК КНОПКИ "НАЧАТЬ" ---
+startBtn.addEventListener('click', () => {
+    isGameStarted = true;
+    startScreen.classList.add('hidden'); // Скрываем оффер
+});
 
 // --- БАЗОВЫЕ ФУНКЦИИ ---
 
@@ -116,7 +116,6 @@ function createGrid() {
 window.restartGame = function() {
     isGameOver = false;
     gameOverScreen.classList.add('hidden');
-    gameOverScreen.querySelector('h1').innerText = "GAME OVER"; 
     
     score = 0;
     scoreEl.innerText = "0";
@@ -178,7 +177,8 @@ function doGameOver() {
 // --- ФИЗИКА ---
 
 function shoot() {
-    if (bullet.active || isGameOver) return;
+    // ВАЖНО: Не даем стрелять, если игра не начата (висит оффер)
+    if (!isGameStarted || bullet.active || isGameOver) return;
     if (particles.some(p => p.type === 'fall')) return; 
 
     let angle = Math.atan2(aimY - playerY, aimX - playerX);
@@ -199,7 +199,6 @@ function update() {
             bullet.x += stepX;
             bullet.y += stepY;
 
-            // Стены
             if (bullet.x - bubbleRadius < 0) {
                 bullet.x = bubbleRadius;
                 bullet.dx = Math.abs(bullet.dx);
@@ -209,14 +208,12 @@ function update() {
                 bullet.dx = -Math.abs(bullet.dx);
             }
 
-            // Потолок
             if (bullet.y - bubbleRadius < 0) {
                 bullet.y = bubbleRadius;
                 snapBubble();
                 return; 
             }
 
-            // Столкновения
             if (checkCollision()) {
                 snapBubble();
                 return;
@@ -303,8 +300,6 @@ function isValidEmpty(r, c) {
     return (b !== null && !b.active);
 }
 
-// --- УДАЛЕНИЕ ---
-
 function findAndRemoveMatches(startR, startC, color) {
     let cluster = [];
     let visited = new Set();
@@ -349,7 +344,6 @@ function findAndRemoveMatches(startR, startC, color) {
     return false;
 }
 
-// --- ГРАВИТАЦИЯ ---
 function dropFloatingBubbles() {
     let visited = new Set();
     let queue = [];
@@ -421,8 +415,6 @@ function getNeighbors(r, c) {
     return result;
 }
 
-// --- ОТРИСОВКА ---
-
 function updateParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
@@ -440,7 +432,7 @@ function updateParticles() {
 }
 
 function drawTrajectory() {
-    if (bullet.active || isGameOver) return;
+    if (!isGameStarted || bullet.active || isGameOver) return; // Не рисуем, если оффер висит
 
     let angle = Math.atan2(aimY - playerY, aimX - playerX);
     let dx = Math.cos(angle);
