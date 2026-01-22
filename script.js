@@ -21,21 +21,13 @@ const GRID_REAL_WIDTH = COLUMN_COUNT * (bubbleRadius * 2);
 const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
 
 const maxRows = 30; 
-// УСЛОЖНЕНИЕ: Начинаем с 12 рядов (поле заполнено больше чем на половину)
-const startRows = 12; 
+const startRows = 9; 
+const SHOTS_TO_ADD_ROW = 5; 
 
-// Полный банк цветов
-const allColors = [
-    '#FF5733', // Красный
-    '#33FF57', // Зеленый
-    '#3357FF', // Синий
-    '#FFC300', // Желтый
-    '#00FFFF', // Голубой
-    '#F333FF', // Фиолетовый (откроется позже)
-    '#ff9f43'  // Оранжевый (откроется позже)
+const colors = [
+    '#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFC300', '#00FFFF', '#ff9f43', '#c8d6e5'
 ];
 
-// Линия смерти
 const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5; 
 
 // --- СОСТОЯНИЕ ---
@@ -45,8 +37,13 @@ let isGameOver = false;
 let isGameStarted = false;
 let animationId = null;
 
+// ВАЖНО: Эта переменная определяет, сдвинута ли сетка.
+// 0 = Ряд 0 широкий (11), Ряд 1 узкий (10)
+// 1 = Ряд 0 узкий (10), Ряд 1 широкий (11)
+let rowOffset = 0; 
+
 let score = 0; 
-let currentDifficulty = 4; // Сколько цветов доступно сейчас
+let shotsFired = 0;
 
 let playerX = gameWidth / 2;
 let playerY = gameHeight - bubbleRadius * 2;
@@ -63,41 +60,32 @@ let bullet = {
 
 let nextColor = getRandomColor();
 
-// --- ОБРАБОТЧИК КНОПКИ ---
 startBtn.addEventListener('click', () => {
     isGameStarted = true;
     startScreen.classList.add('hidden');
 });
 
-// --- ДИНАМИЧЕСКАЯ СЛОЖНОСТЬ ---
+// --- СИСТЕМНЫЕ ФУНКЦИИ (С УЧЕТОМ rowOffset) ---
 
-// Возвращает цвет только из доступных на текущем уровне сложности
 function getRandomColor() {
-    return allColors[Math.floor(Math.random() * currentDifficulty)];
+    return colors[Math.floor(Math.random() * colors.length)];
 }
 
-// Проверка повышения уровня сложности
-function checkDifficultyLevel() {
-    let oldDiff = currentDifficulty;
-    
-    if (score >= 1000) currentDifficulty = 5;
-    if (score >= 3000) currentDifficulty = 6;
-    if (score >= 6000) currentDifficulty = 7;
-
-    // Если сложность повысилась, можно добавить визуальный эффект или звук в будущем
-    if (currentDifficulty > oldDiff) {
-        console.log("Level UP! Colors: " + currentDifficulty);
-    }
+// Определяет тип ряда: 0 - широкий (11), 1 - узкий (10)
+function getRowType(r) {
+    return (r + rowOffset) % 2;
 }
-
-// --- БАЗОВЫЕ ФУНКЦИИ СЕТКИ ---
 
 function getColsCount(r) {
-    return (r % 2 === 0) ? COLUMN_COUNT : (COLUMN_COUNT - 1);
+    // Если тип 0 - то 11 колонок, если 1 - то 10
+    return getRowType(r) === 0 ? COLUMN_COUNT : (COLUMN_COUNT - 1);
 }
 
 function getPixelCoords(r, c) {
-    let shiftX = (r % 2) * bubbleRadius;
+    // Если ряд узкий (тип 1), сдвигаем его вправо на радиус
+    let isNarrow = getRowType(r) === 1;
+    let shiftX = isNarrow ? bubbleRadius : 0;
+    
     let x = c * (bubbleRadius * 2) + bubbleRadius + shiftX + OFFSET_X;
     let y = r * ROW_HEIGHT + bubbleRadius;
     return {x, y};
@@ -105,7 +93,11 @@ function getPixelCoords(r, c) {
 
 function getGridCoords(x, y) {
     let gridY = Math.round((y - bubbleRadius) / ROW_HEIGHT);
-    let shiftX = (gridY % 2) * bubbleRadius;
+    
+    // Обратный расчет с учетом типа ряда
+    let isNarrow = getRowType(gridY) === 1;
+    let shiftX = isNarrow ? bubbleRadius : 0;
+    
     let gridX = Math.round((x - OFFSET_X - bubbleRadius - shiftX) / (bubbleRadius * 2));
     return {r: gridY, c: gridX};
 }
@@ -121,28 +113,24 @@ function getBubble(r, c) {
 function addScore(points) {
     score += points;
     scoreEl.innerText = score;
-    checkDifficultyLevel(); // Проверяем, не пора ли добавить новый цвет
 }
 
 // --- ИГРОВОЙ ЦИКЛ ---
 
 function createGrid() {
     grid = [];
-    currentDifficulty = 4; // Сброс сложности на старт (4 цвета)
+    rowOffset = 0; // Сброс смещения
     
     for (let r = 0; r < maxRows; r++) {
         grid[r] = [];
         let cols = getColsCount(r);
-        for (let c = 0; c < COLUMN_COUNT; c++) {
+        for (let c = 0; c < COLUMN_COUNT; c++) { // Создаем массив с запасом
             let isActive = (c < cols && r < startRows);
-            
-            // Умная генерация: стараемся не ставить 2 одинаковых цвета рядом
+            // Anti-Cluster генерация
             let color = getRandomColor();
             if (isActive && c > 0 && grid[r][c-1].color === color) {
-                // 70% шанс сменить цвет, если совпал с соседом
                 if (Math.random() > 0.3) color = getRandomColor();
             }
-
             grid[r][c] = { 
                 color: isActive ? color : null, 
                 active: isActive 
@@ -154,18 +142,53 @@ function createGrid() {
 window.restartGame = function() {
     isGameOver = false;
     gameOverScreen.classList.add('hidden');
-    gameOverScreen.querySelector('h1').innerText = "GAME OVER"; 
-    
     score = 0;
+    shotsFired = 0;
     scoreEl.innerText = "0";
-    
     particles = [];
     bullet.active = false;
     createGrid();
     reloadGun();
-    
     if (animationId) cancelAnimationFrame(animationId);
     draw();
+}
+
+// --- НОВАЯ ЛОГИКА ДОБАВЛЕНИЯ РЯДА (БЕЗ УНИЧТОЖЕНИЯ) ---
+function addNewRow() {
+    // 1. Удаляем низ
+    grid.pop(); 
+    
+    // 2. МЕНЯЕМ ФАЗУ СЕТКИ
+    // Теперь то, что было "широким" рядом 0, станет "широким" рядом 1.
+    // Мы инвертируем offset, чтобы математика координат подстроилась под сдвиг.
+    rowOffset = 1 - rowOffset; 
+    
+    // 3. Создаем новый ряд.
+    // Он встанет на индекс 0. Его ширина зависит от НОВОГО rowOffset.
+    let newRowCols = getColsCount(0);
+    let newRow = [];
+    
+    for (let c = 0; c < COLUMN_COUNT; c++) {
+        let active = c < newRowCols;
+        let color = getRandomColor();
+        if (c > 0 && newRow[c-1]?.color === color) color = getRandomColor();
+        
+        newRow[c] = { 
+            color: active ? color : null, 
+            active: active 
+        };
+    }
+    
+    // 4. Вставляем
+    grid.unshift(newRow); 
+    
+    // 5. НИКАКОЙ ЗАЧИСТКИ КРАЕВ!
+    // Благодаря rowOffset, шары, которые сдвинулись вниз,
+    // по-прежнему "влезают" в свои ряды, потому что математика рядов сдвинулась вместе с ними.
+    
+    // Проверяем гравитацию на случай, если новый ряд создал разрыв (маловероятно, но нужно)
+    dropFloatingBubbles(); 
+    checkGameOver();
 }
 
 function checkWin() {
@@ -179,12 +202,9 @@ function checkWin() {
         }
     }
     if (!hasBubbles) {
-        isGameOver = true;
-        let h1 = gameOverScreen.querySelector('h1');
-        h1.innerText = "ПОБЕДА!";
-        h1.style.color = "#2ed573";
-        finalScoreEl.innerText = score;
-        gameOverScreen.classList.remove('hidden');
+        addScore(1000);
+        addNewRow();
+        addNewRow();
     }
 }
 
@@ -223,6 +243,8 @@ function shoot() {
     bullet.dx = Math.cos(angle) * bullet.speed;
     bullet.dy = Math.sin(angle) * bullet.speed;
     bullet.active = true;
+    
+    shotsFired++;
 }
 
 function update() {
@@ -237,7 +259,6 @@ function update() {
             bullet.x += stepX;
             bullet.y += stepY;
 
-            // Стены
             if (bullet.x - bubbleRadius < 0) {
                 bullet.x = bubbleRadius;
                 bullet.dx = Math.abs(bullet.dx);
@@ -247,14 +268,12 @@ function update() {
                 bullet.dx = -Math.abs(bullet.dx);
             }
 
-            // Потолок
             if (bullet.y - bubbleRadius < 0) {
                 bullet.y = bubbleRadius;
                 snapBubble();
                 return; 
             }
 
-            // Столкновения
             if (checkCollision()) {
                 snapBubble();
                 return;
@@ -329,6 +348,12 @@ function snapBubble() {
         if (popped) {
             dropFloatingBubbles();
         }
+
+        if (shotsFired % SHOTS_TO_ADD_ROW === 0) {
+            setTimeout(() => {
+                addNewRow();
+            }, 300);
+        }
     }
     
     checkWin(); 
@@ -340,6 +365,8 @@ function isValidEmpty(r, c) {
     let b = getBubble(r, c);
     return (b !== null && !b.active);
 }
+
+// --- УДАЛЕНИЕ ---
 
 function findAndRemoveMatches(startR, startC, color) {
     let cluster = [];
@@ -385,6 +412,7 @@ function findAndRemoveMatches(startR, startC, color) {
     return false;
 }
 
+// --- ГРАВИТАЦИЯ ---
 function dropFloatingBubbles() {
     let visited = new Set();
     let queue = [];
@@ -434,11 +462,18 @@ function dropFloatingBubbles() {
     }
 }
 
+// --- СОСЕДИ (ЗАВИСЯТ ОТ rowOffset) ---
 function getNeighbors(r, c) {
     let offsets;
-    if (r % 2 === 0) { 
+    // Определяем, четный ли ряд ВИЗУАЛЬНО (а не по индексу)
+    // Тип 0 = Широкий (11), Тип 1 = Узкий (10)
+    let isNarrow = getRowType(r) === 1;
+
+    if (!isNarrow) { 
+        // Для широкого ряда (11)
         offsets = [[0,-1], [0,1], [-1,-1], [-1,0], [1,-1], [1,0]];
     } else { 
+        // Для узкого ряда (10)
         offsets = [[0,-1], [0,1], [-1,0], [-1,1], [1,0], [1,1]];
     }
 
@@ -456,6 +491,8 @@ function getNeighbors(r, c) {
     return result;
 }
 
+// --- ОТРИСОВКА ---
+
 function updateParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
@@ -472,7 +509,6 @@ function updateParticles() {
     }
 }
 
-// --- УСЛОЖНЕНИЕ: СЛОЖНЫЙ ПРИЦЕЛ ---
 function drawTrajectory() {
     if (!isGameStarted || bullet.active || isGameOver) return; 
 
@@ -487,7 +523,6 @@ function drawTrajectory() {
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 15]); 
 
-    // Раньше было 60, теперь 20. Луч короткий, рикошет не виден.
     for (let i = 0; i < 20; i++) {
         simX += dx * 15;
         simY += dy * 15;
@@ -502,7 +537,6 @@ function draw() {
         update();
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Линия смерти
         ctx.beginPath();
         ctx.moveTo(0, LIMIT_LINE_Y);
         ctx.lineTo(gameWidth, LIMIT_LINE_Y);
@@ -512,7 +546,6 @@ function draw() {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Сетка
         for (let r = 0; r < maxRows; r++) {
             let cols = getColsCount(r);
             for (let c = 0; c < cols; c++) {
@@ -531,7 +564,6 @@ function draw() {
             }
         }
 
-        // Частицы
         for (let p of particles) {
             if (p.type === 'pop') {
                 ctx.beginPath();
@@ -582,7 +614,6 @@ function reloadGun() {
     nextColor = getRandomColor();
 }
 
-// УПРАВЛЕНИЕ
 canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     aimX = e.clientX - rect.left;
