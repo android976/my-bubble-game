@@ -8,10 +8,34 @@
 </head>
 <body>
 
-    <!-- Главный контейнер игры -->
     <div id="game-wrapper">
         
-        <!-- Счет внутри игрового поля (слева внизу) -->
+        <!-- СТАРТОВЫЙ ЭКРАН (ОФФЕР) -->
+        <div id="start-screen">
+            <div class="offer-card">
+                <h1>SPACE BUBBLES</h1> <!-- Новое название -->
+                <p class="subtitle">Играй и получай<br>бесплатные роллы!</p>
+                
+                <div class="rewards-list">
+                    <div class="reward-row">
+                        <span class="badge">5000 очков</span>
+                        <span class="reward-name">Маки с лососем</span>
+                    </div>
+                    <div class="reward-row">
+                        <span class="badge">10000 очков</span>
+                        <span class="reward-name">Темпура с крабом</span>
+                    </div>
+                    <div class="reward-row">
+                        <span class="badge">20000 очков</span>
+                        <span class="reward-name">Филадельфия лайт</span>
+                    </div>
+                </div>
+
+                <button id="start-btn">НАЧАТЬ</button>
+            </div>
+        </div>
+
+        <!-- Интерфейс счета -->
         <div id="score-container">
             Счет: <span id="score-val">0</span>
         </div>
@@ -23,7 +47,6 @@
             <button onclick="restartGame()">ИГРАТЬ СНОВА</button>
         </div>
 
-        <!-- Холст -->
         <canvas id="gameCanvas"></canvas>
     </div>
 
