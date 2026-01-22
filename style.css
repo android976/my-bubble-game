@@ -29,26 +29,28 @@ canvas {
     height: 100%;
 }
 
-/* --- СТАРТОВЫЙ ЭКРАН (ОФФЕР) --- */
-#start-screen {
+/* --- КАРТОЧКИ (СТАРТ И ФИНАЛ) --- */
+#start-screen, #game-over-screen {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.7); /* Затемнение фона */
+    background: rgba(0, 0, 0, 0.85);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 30; /* Самый верхний слой */
+    z-index: 30;
 }
+
+.hidden { display: none !important; }
 
 .offer-card {
     background: white;
     width: 85%;
     max-width: 350px;
     border-radius: 20px;
-    border: 4px solid #4a3b32; /* Темно-коричневая рамка как на скрине */
+    border: 4px solid #4a3b32;
     padding: 25px 20px;
     text-align: center;
     box-shadow: 0 10px 25px rgba(0,0,0,0.5);
@@ -62,22 +64,22 @@ canvas {
     font-size: 28px;
     color: #4a3b32;
     font-family: 'Arial Black', sans-serif;
-    text-shadow: none;
     text-transform: uppercase;
 }
 
 .subtitle {
-    color: #ff4757; /* Красный текст */
+    color: #ff4757;
     font-weight: bold;
     font-size: 16px;
     margin: 10px 0 20px 0;
     line-height: 1.4;
 }
 
+/* Список наград на старте */
 .rewards-list {
     width: 100%;
-    background-color: #fff8f0; /* Светло-бежевый фон внутри */
-    border: 2px dashed #ffb8b8; /* Пунктирная рамка */
+    background-color: #fff8f0;
+    border: 2px dashed #ffb8b8;
     border-radius: 10px;
     padding: 15px;
     box-sizing: border-box;
@@ -94,9 +96,7 @@ canvas {
     font-weight: bold;
 }
 
-.reward-row:last-child {
-    margin-bottom: 0;
-}
+.reward-row:last-child { margin-bottom: 0; }
 
 .badge {
     background: linear-gradient(90deg, #ff6b81, #ff4757);
@@ -105,32 +105,67 @@ canvas {
     border-radius: 4px;
     font-size: 12px;
     margin-right: 10px;
-    min-width: 80px; /* Чтобы все плашки были одной ширины */
+    min-width: 80px;
     text-align: center;
-    box-shadow: 0 2px 0 #c41e30;
 }
 
-/* Кнопка НАЧАТЬ */
-#start-btn {
+/* БЛОК С ПРОМОКОДОМ (ФИНАЛ) */
+.promo-box {
+    width: 100%;
+    background-color: #f1f2f6;
+    border: 2px solid #ced6e0;
+    border-radius: 10px;
+    padding: 15px;
+    margin: 10px 0 20px 0;
+    box-sizing: border-box;
+}
+
+.promo-label {
+    display: block;
+    font-size: 12px;
+    color: #747d8c;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.promo-code {
+    display: block;
+    font-size: 32px;
+    font-family: 'Arial Black', sans-serif;
+    color: #2ed573; /* Зеленый цвет успеха */
+    margin-bottom: 5px;
+    letter-spacing: 2px;
+}
+
+.promo-condition {
+    display: block;
+    font-size: 14px;
+    color: #4a3b32;
+    font-weight: bold;
+}
+
+/* КНОПКИ */
+button {
     background: linear-gradient(to bottom, #ff6b81, #ff4757);
     color: white;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: bold;
     border: none;
     border-radius: 50px;
-    padding: 15px 50px;
+    padding: 15px 40px;
     cursor: pointer;
-    box-shadow: 0 6px 0 #c41e30; /* 3D эффект */
-    transition: transform 0.1s, box-shadow 0.1s;
+    box-shadow: 0 5px 0 #c41e30;
+    transition: transform 0.1s;
     outline: none;
 }
 
-#start-btn:active {
+button:active {
     transform: translateY(4px);
     box-shadow: 0 2px 0 #c41e30;
 }
 
-/* СЧЕТ и GAME OVER (Старые стили) */
+/* СЧЕТ В ИГРЕ */
 #score-container {
     position: absolute;
     bottom: 15px;
@@ -145,51 +180,3 @@ canvas {
 }
 
 #score-val { color: #ff9f43; }
-
-#game-over-screen {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.9);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 20;
-    color: white;
-}
-
-.hidden { display: none !important; }
-
-#game-over-screen h1 {
-    font-size: 40px;
-    color: #ff4757;
-    margin-bottom: 5px;
-    text-shadow: 3px 3px 0 #000;
-}
-
-#game-over-screen p {
-    font-size: 20px;
-    margin-bottom: 30px;
-    color: #fff;
-}
-
-#game-over-screen button {
-    padding: 15px 40px;
-    font-size: 20px;
-    font-weight: bold;
-    background-color: #2ed573;
-    color: white;
-    border: none;
-    border-radius: 50px;
-    cursor: pointer;
-    box-shadow: 0 5px 0 #218c74;
-    transition: transform 0.1s;
-}
-
-#game-over-screen button:active {
-    transform: translateY(4px);
-    box-shadow: 0 1px 0 #218c74;
-}
