@@ -21,22 +21,22 @@ const GRID_REAL_WIDTH = COLUMN_COUNT * (bubbleRadius * 2);
 const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
 
 const maxRows = 30; 
-const startRows = 10; // Чуть больше рядов на старте
+// УСЛОЖНЕНИЕ: Начинаем с 12 рядов (поле заполнено больше чем на половину)
+const startRows = 12; 
 
-// --- ВОЗВРАТ: 8 ЦВЕТОВ ---
-const colors = [
-    '#FF5733', // Red
-    '#33FF57', // Green
-    '#3357FF', // Blue
-    '#F333FF', // Purple
-    '#FFC300', // Yellow
-    '#00FFFF', // Cyan
-    '#ff9f43', // Orange
-    '#c8d6e5'  // Grey
+// Полный банк цветов
+const allColors = [
+    '#FF5733', // Красный
+    '#33FF57', // Зеленый
+    '#3357FF', // Синий
+    '#FFC300', // Желтый
+    '#00FFFF', // Голубой
+    '#F333FF', // Фиолетовый (откроется позже)
+    '#ff9f43'  // Оранжевый (откроется позже)
 ];
 
-// Линия смерти ближе (меньше права на ошибку)
-const LIMIT_LINE_Y = gameHeight - bubbleRadius * 6; 
+// Линия смерти
+const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5; 
 
 // --- СОСТОЯНИЕ ---
 let grid = []; 
@@ -46,6 +46,7 @@ let isGameStarted = false;
 let animationId = null;
 
 let score = 0; 
+let currentDifficulty = 4; // Сколько цветов доступно сейчас
 
 let playerX = gameWidth / 2;
 let playerY = gameHeight - bubbleRadius * 2;
@@ -68,11 +69,28 @@ startBtn.addEventListener('click', () => {
     startScreen.classList.add('hidden');
 });
 
-// --- БАЗОВЫЕ ФУНКЦИИ ---
+// --- ДИНАМИЧЕСКАЯ СЛОЖНОСТЬ ---
 
+// Возвращает цвет только из доступных на текущем уровне сложности
 function getRandomColor() {
-    return colors[Math.floor(Math.random() * colors.length)];
+    return allColors[Math.floor(Math.random() * currentDifficulty)];
 }
+
+// Проверка повышения уровня сложности
+function checkDifficultyLevel() {
+    let oldDiff = currentDifficulty;
+    
+    if (score >= 1000) currentDifficulty = 5;
+    if (score >= 3000) currentDifficulty = 6;
+    if (score >= 6000) currentDifficulty = 7;
+
+    // Если сложность повысилась, можно добавить визуальный эффект или звук в будущем
+    if (currentDifficulty > oldDiff) {
+        console.log("Level UP! Colors: " + currentDifficulty);
+    }
+}
+
+// --- БАЗОВЫЕ ФУНКЦИИ СЕТКИ ---
 
 function getColsCount(r) {
     return (r % 2 === 0) ? COLUMN_COUNT : (COLUMN_COUNT - 1);
@@ -103,23 +121,26 @@ function getBubble(r, c) {
 function addScore(points) {
     score += points;
     scoreEl.innerText = score;
+    checkDifficultyLevel(); // Проверяем, не пора ли добавить новый цвет
 }
 
 // --- ИГРОВОЙ ЦИКЛ ---
 
 function createGrid() {
     grid = [];
+    currentDifficulty = 4; // Сброс сложности на старт (4 цвета)
+    
     for (let r = 0; r < maxRows; r++) {
         grid[r] = [];
         let cols = getColsCount(r);
         for (let c = 0; c < COLUMN_COUNT; c++) {
             let isActive = (c < cols && r < startRows);
             
-            // --- УСЛОЖНЕНИЕ: ГЕНЕРАЦИЯ БЕЗ ГОТОВЫХ ГРУПП ---
+            // Умная генерация: стараемся не ставить 2 одинаковых цвета рядом
             let color = getRandomColor();
-            // Если слева стоит такой же цвет - меняем (с шансом 80%)
             if (isActive && c > 0 && grid[r][c-1].color === color) {
-                if (Math.random() > 0.2) color = getRandomColor();
+                // 70% шанс сменить цвет, если совпал с соседом
+                if (Math.random() > 0.3) color = getRandomColor();
             }
 
             grid[r][c] = { 
@@ -133,6 +154,7 @@ function createGrid() {
 window.restartGame = function() {
     isGameOver = false;
     gameOverScreen.classList.add('hidden');
+    gameOverScreen.querySelector('h1').innerText = "GAME OVER"; 
     
     score = 0;
     scoreEl.innerText = "0";
@@ -215,6 +237,7 @@ function update() {
             bullet.x += stepX;
             bullet.y += stepY;
 
+            // Стены
             if (bullet.x - bubbleRadius < 0) {
                 bullet.x = bubbleRadius;
                 bullet.dx = Math.abs(bullet.dx);
@@ -224,12 +247,14 @@ function update() {
                 bullet.dx = -Math.abs(bullet.dx);
             }
 
+            // Потолок
             if (bullet.y - bubbleRadius < 0) {
                 bullet.y = bubbleRadius;
                 snapBubble();
                 return; 
             }
 
+            // Столкновения
             if (checkCollision()) {
                 snapBubble();
                 return;
@@ -447,6 +472,7 @@ function updateParticles() {
     }
 }
 
+// --- УСЛОЖНЕНИЕ: СЛОЖНЫЙ ПРИЦЕЛ ---
 function drawTrajectory() {
     if (!isGameStarted || bullet.active || isGameOver) return; 
 
@@ -457,12 +483,11 @@ function drawTrajectory() {
     
     ctx.beginPath();
     ctx.moveTo(simX, simY);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; // Полупрозрачный
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 15]); 
 
-    // --- УСЛОЖНЕНИЕ: КОРОТКИЙ ПРИЦЕЛ ---
-    // i < 20 означает, что линия будет короткой и не дойдет до стены
+    // Раньше было 60, теперь 20. Луч короткий, рикошет не виден.
     for (let i = 0; i < 20; i++) {
         simX += dx * 15;
         simY += dy * 15;
