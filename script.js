@@ -21,10 +21,20 @@ const GRID_REAL_WIDTH = COLUMN_COUNT * (bubbleRadius * 2);
 const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
 
 const maxRows = 30; 
-const startRows = 9; 
+const startRows = 10; // Чуть больше рядов на старте
+
+// --- УСЛОЖНЕНИЕ: 10 ЦВЕТОВ ---
 const colors = [
-    '#FF5733', '#33FF57', '#3357FF', '#F333FF', '#FFC300', '#00FFFF',
-    '#ff9f43', '#c8d6e5'
+    '#FF5733', // Красный
+    '#33FF57', // Зеленый
+    '#3357FF', // Синий
+    '#F333FF', // Фиолетовый
+    '#FFC300', // Желтый
+    '#00FFFF', // Голубой
+    '#ff9f43', // Оранжевый
+    '#c8d6e5', // Светло-серый
+    '#576574', // Темно-серый (New)
+    '#22a6b3'  // Бирюзовый (New)
 ];
 
 const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5; 
@@ -33,7 +43,7 @@ const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5;
 let grid = []; 
 let particles = []; 
 let isGameOver = false;
-let isGameStarted = false; // Игра на паузе, пока висит оффер
+let isGameStarted = false;
 let animationId = null;
 
 let score = 0; 
@@ -56,7 +66,7 @@ let nextColor = getRandomColor();
 // --- ОБРАБОТЧИК КНОПКИ "НАЧАТЬ" ---
 startBtn.addEventListener('click', () => {
     isGameStarted = true;
-    startScreen.classList.add('hidden'); // Скрываем оффер
+    startScreen.classList.add('hidden');
 });
 
 // --- БАЗОВЫЕ ФУНКЦИИ ---
@@ -105,8 +115,18 @@ function createGrid() {
         let cols = getColsCount(r);
         for (let c = 0; c < COLUMN_COUNT; c++) {
             let isActive = (c < cols && r < startRows);
+            
+            // --- УСЛОЖНЕНИЕ: ХАОТИЧНАЯ ГЕНЕРАЦИЯ ---
+            // Стараемся не ставить такой же цвет, как слева, чтобы не было халявных групп
+            let color = getRandomColor();
+            if (isActive && c > 0 && grid[r][c-1].color === color) {
+                // Если цвет совпал с соседом слева, пробуем другой (50% шанс сменить)
+                // Не делаем жесткий запрет, чтобы иногда маленькие группы все же были
+                color = getRandomColor();
+            }
+
             grid[r][c] = { 
-                color: isActive ? getRandomColor() : null, 
+                color: isActive ? color : null, 
                 active: isActive 
             };
         }
@@ -116,6 +136,7 @@ function createGrid() {
 window.restartGame = function() {
     isGameOver = false;
     gameOverScreen.classList.add('hidden');
+    gameOverScreen.querySelector('h1').innerText = "GAME OVER"; 
     
     score = 0;
     scoreEl.innerText = "0";
@@ -177,7 +198,6 @@ function doGameOver() {
 // --- ФИЗИКА ---
 
 function shoot() {
-    // ВАЖНО: Не даем стрелять, если игра не начата (висит оффер)
     if (!isGameStarted || bullet.active || isGameOver) return;
     if (particles.some(p => p.type === 'fall')) return; 
 
@@ -432,7 +452,7 @@ function updateParticles() {
 }
 
 function drawTrajectory() {
-    if (!isGameStarted || bullet.active || isGameOver) return; // Не рисуем, если оффер висит
+    if (!isGameStarted || bullet.active || isGameOver) return; 
 
     let angle = Math.atan2(aimY - playerY, aimX - playerX);
     let dx = Math.cos(angle);
