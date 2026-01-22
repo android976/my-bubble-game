@@ -1,26 +1,25 @@
 body {
     margin: 0;
     padding: 0;
-    background-color: #0d0d1a; /* Цвет фона за пределами игры (черный/темный) */
+    background-color: #0d0d1a;
     overflow: hidden;
     height: 100vh;
     width: 100vw;
     display: flex;
-    justify-content: center; /* Центрируем игру по горизонтали */
-    align-items: center;     /* Центрируем игру по вертикали */
+    justify-content: center;
+    align-items: center;
     font-family: Arial, sans-serif;
     user-select: none;
     -webkit-user-select: none;
 }
 
-/* Ограничитель игрового поля */
 #game-wrapper {
-    position: relative; /* Важно! Дочерние элементы (счет) будут позиционироваться отсюда */
+    position: relative;
     width: 100%;
-    max-width: 480px; /* Максимальная ширина игры */
-    height: 100%;     /* На весь экран по высоте */
-    background-color: #16213e; /* Цвет поля игры */
-    box-shadow: 0 0 30px rgba(0,0,0,0.8); /* Тень вокруг игры */
+    max-width: 480px;
+    height: 100%;
+    background-color: #16213e; 
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
     overflow: hidden;
 }
 
@@ -28,28 +27,125 @@ canvas {
     display: block;
     width: 100%;
     height: 100%;
-    /* Сам canvas прозрачный, фон задаем wrapper-у */
 }
 
-/* СЧЕТ */
+/* --- СТАРТОВЫЙ ЭКРАН (ОФФЕР) --- */
+#start-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7); /* Затемнение фона */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 30; /* Самый верхний слой */
+}
+
+.offer-card {
+    background: white;
+    width: 85%;
+    max-width: 350px;
+    border-radius: 20px;
+    border: 4px solid #4a3b32; /* Темно-коричневая рамка как на скрине */
+    padding: 25px 20px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.offer-card h1 {
+    margin: 0;
+    font-size: 28px;
+    color: #4a3b32;
+    font-family: 'Arial Black', sans-serif;
+    text-shadow: none;
+    text-transform: uppercase;
+}
+
+.subtitle {
+    color: #ff4757; /* Красный текст */
+    font-weight: bold;
+    font-size: 16px;
+    margin: 10px 0 20px 0;
+    line-height: 1.4;
+}
+
+.rewards-list {
+    width: 100%;
+    background-color: #fff8f0; /* Светло-бежевый фон внутри */
+    border: 2px dashed #ffb8b8; /* Пунктирная рамка */
+    border-radius: 10px;
+    padding: 15px;
+    box-sizing: border-box;
+    margin-bottom: 20px;
+}
+
+.reward-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #4a3b32;
+    font-weight: bold;
+}
+
+.reward-row:last-child {
+    margin-bottom: 0;
+}
+
+.badge {
+    background: linear-gradient(90deg, #ff6b81, #ff4757);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 10px;
+    min-width: 80px; /* Чтобы все плашки были одной ширины */
+    text-align: center;
+    box-shadow: 0 2px 0 #c41e30;
+}
+
+/* Кнопка НАЧАТЬ */
+#start-btn {
+    background: linear-gradient(to bottom, #ff6b81, #ff4757);
+    color: white;
+    font-size: 22px;
+    font-weight: bold;
+    border: none;
+    border-radius: 50px;
+    padding: 15px 50px;
+    cursor: pointer;
+    box-shadow: 0 6px 0 #c41e30; /* 3D эффект */
+    transition: transform 0.1s, box-shadow 0.1s;
+    outline: none;
+}
+
+#start-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 2px 0 #c41e30;
+}
+
+/* СЧЕТ и GAME OVER (Старые стили) */
 #score-container {
     position: absolute;
-    bottom: 15px;  /* Отступ снизу */
-    left: 15px;    /* Отступ слева */
+    bottom: 15px;
+    left: 15px;
     color: white;
     font-size: 20px;
     font-weight: bold;
     font-family: 'Arial Black', sans-serif;
-    z-index: 10;   /* Поверх canvas */
+    z-index: 10;
     text-shadow: 1px 1px 2px black;
     pointer-events: none;
 }
 
-#score-val {
-    color: #ff9f43; /* Оранжевый цвет цифр */
-}
+#score-val { color: #ff9f43; }
 
-/* Экран проигрыша */
 #game-over-screen {
     position: absolute;
     top: 0;
@@ -67,20 +163,20 @@ canvas {
 
 .hidden { display: none !important; }
 
-h1 {
+#game-over-screen h1 {
     font-size: 40px;
     color: #ff4757;
     margin-bottom: 5px;
     text-shadow: 3px 3px 0 #000;
 }
 
-p {
+#game-over-screen p {
     font-size: 20px;
     margin-bottom: 30px;
     color: #fff;
 }
 
-button {
+#game-over-screen button {
     padding: 15px 40px;
     font-size: 20px;
     font-weight: bold;
@@ -93,7 +189,7 @@ button {
     transition: transform 0.1s;
 }
 
-button:active {
+#game-over-screen button:active {
     transform: translateY(4px);
     box-shadow: 0 1px 0 #218c74;
 }
