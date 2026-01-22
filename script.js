@@ -21,11 +21,9 @@ const GRID_REAL_WIDTH = COLUMN_COUNT * (bubbleRadius * 2);
 const OFFSET_X = (gameWidth - GRID_REAL_WIDTH) / 2;
 
 const maxRows = 30; 
-const startRows = 9; 
+const startRows = 10; // Чуть больше рядов на старте
 
-// Каждые 3 выстрела добавляем ряд
-const SHOTS_TO_ADD_ROW = 3; 
-
+// --- ВОЗВРАТ: 8 ЦВЕТОВ ---
 const colors = [
     '#FF5733', // Red
     '#33FF57', // Green
@@ -37,7 +35,8 @@ const colors = [
     '#c8d6e5'  // Grey
 ];
 
-const LIMIT_LINE_Y = gameHeight - bubbleRadius * 5; 
+// Линия смерти ближе (меньше права на ошибку)
+const LIMIT_LINE_Y = gameHeight - bubbleRadius * 6; 
 
 // --- СОСТОЯНИЕ ---
 let grid = []; 
@@ -47,7 +46,6 @@ let isGameStarted = false;
 let animationId = null;
 
 let score = 0; 
-let shotsFired = 0; // Счетчик для сдвига
 
 let playerX = gameWidth / 2;
 let playerY = gameHeight - bubbleRadius * 2;
@@ -117,12 +115,11 @@ function createGrid() {
         for (let c = 0; c < COLUMN_COUNT; c++) {
             let isActive = (c < cols && r < startRows);
             
-            // Генерация без повторов по горизонтали (чтобы не было готовых троек)
+            // --- УСЛОЖНЕНИЕ: ГЕНЕРАЦИЯ БЕЗ ГОТОВЫХ ГРУПП ---
             let color = getRandomColor();
+            // Если слева стоит такой же цвет - меняем (с шансом 80%)
             if (isActive && c > 0 && grid[r][c-1].color === color) {
-                // Пробуем сменить цвет, если совпал с левым соседом
-                let newColor = getRandomColor();
-                if (newColor !== color) color = newColor;
+                if (Math.random() > 0.2) color = getRandomColor();
             }
 
             grid[r][c] = { 
@@ -138,7 +135,6 @@ window.restartGame = function() {
     gameOverScreen.classList.add('hidden');
     
     score = 0;
-    shotsFired = 0;
     scoreEl.innerText = "0";
     
     particles = [];
@@ -148,60 +144,6 @@ window.restartGame = function() {
     
     if (animationId) cancelAnimationFrame(animationId);
     draw();
-}
-
-// --- ФУНКЦИЯ ДОБАВЛЕНИЯ РЯДА (НОВАЯ) ---
-function addNewRow() {
-    // 1. Удаляем самый нижний ряд из памяти, чтобы массив не рос бесконечно
-    grid.pop(); 
-    
-    // 2. Создаем новый верхний ряд (он встанет на индекс 0, значит Четный/Длинный)
-    let newRow = [];
-    for (let c = 0; c < COLUMN_COUNT; c++) {
-        let color = getRandomColor();
-        // Проверка, чтобы не создавать горизонтальные тройки сразу
-        if (c > 0 && newRow[c-1].color === color) {
-            color = getRandomColor();
-        }
-        newRow[c] = { color: color, active: true };
-    }
-    
-    // 3. Вставляем новый ряд сверху. Все старые ряды сдвигаются вниз.
-    // ТЕПЕРЬ ИНДЕКСЫ МЕНЯЮТСЯ: То, что было четным (11), станет нечетным (10).
-    grid.unshift(newRow); 
-    
-    // 4. Чистка краев. 
-    // Так как ряды сдвинулись, в "узких" рядах могли оказаться лишние 11-е шары.
-    cleanEdgesAndCheckGravity();
-    
-    checkGameOver();
-}
-
-function cleanEdgesAndCheckGravity() {
-    let explodedEdge = false;
-
-    for (let r = 0; r < maxRows; r++) {
-        // Если ряд нечетный (должно быть 10), а в данных есть 11-й элемент
-        if (r % 2 !== 0) {
-            let b = grid[r][COLUMN_COUNT - 1]; // Это 11-й элемент (индекс 10)
-            if (b && b.active) {
-                b.active = false; // "Раздавливаем" об стену
-                explodedEdge = true;
-                
-                // Визуальный эффект
-                let p = getPixelCoords(r, COLUMN_COUNT - 1);
-                particles.push({
-                    x: p.x, y: p.y, color: b.color, 
-                    type: 'pop', scale: 1, alpha: 1
-                });
-            }
-        }
-    }
-
-    // Если мы раздавили шары с краю, или просто сдвинули ряды,
-    // нужно ОБЯЗАТЕЛЬНО пересчитать, не повисло ли что-то в воздухе.
-    // Делаем это всегда после сдвига.
-    dropFloatingBubbles();
 }
 
 function checkWin() {
@@ -215,10 +157,12 @@ function checkWin() {
         }
     }
     if (!hasBubbles) {
-        // При добавлении рядов полная победа маловероятна, но оставим условие
-        // Можно добавить бонус очков и новый ряд
-        addScore(1000);
-        addNewRow();
+        isGameOver = true;
+        let h1 = gameOverScreen.querySelector('h1');
+        h1.innerText = "ПОБЕДА!";
+        h1.style.color = "#2ed573";
+        finalScoreEl.innerText = score;
+        gameOverScreen.classList.remove('hidden');
     }
 }
 
@@ -257,9 +201,6 @@ function shoot() {
     bullet.dx = Math.cos(angle) * bullet.speed;
     bullet.dy = Math.sin(angle) * bullet.speed;
     bullet.active = true;
-    
-    // Увеличиваем счетчик выстрелов
-    shotsFired++;
 }
 
 function update() {
@@ -363,16 +304,6 @@ function snapBubble() {
         if (popped) {
             dropFloatingBubbles();
         }
-
-        // --- ЛОГИКА ДОБАВЛЕНИЯ РЯДА ---
-        // Если ничего не лопнуло, или лопнуло - проверяем счетчик
-        // Если выстрелов достаточно, добавляем ряд
-        if (shotsFired % SHOTS_TO_ADD_ROW === 0) {
-            // Небольшая задержка, чтобы игрок увидел, куда встал его шар
-            setTimeout(() => {
-                addNewRow();
-            }, 300);
-        }
     }
     
     checkWin(); 
@@ -384,8 +315,6 @@ function isValidEmpty(r, c) {
     let b = getBubble(r, c);
     return (b !== null && !b.active);
 }
-
-// --- УДАЛЕНИЕ ---
 
 function findAndRemoveMatches(startR, startC, color) {
     let cluster = [];
@@ -431,7 +360,6 @@ function findAndRemoveMatches(startR, startC, color) {
     return false;
 }
 
-// --- ГРАВИТАЦИЯ ---
 function dropFloatingBubbles() {
     let visited = new Set();
     let queue = [];
@@ -503,8 +431,6 @@ function getNeighbors(r, c) {
     return result;
 }
 
-// --- ОТРИСОВКА ---
-
 function updateParticles() {
     for (let i = particles.length - 1; i >= 0; i--) {
         let p = particles[i];
@@ -531,18 +457,15 @@ function drawTrajectory() {
     
     ctx.beginPath();
     ctx.moveTo(simX, simY);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; // Полупрозрачный
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 15]); 
 
-    for (let i = 0; i < 60; i++) {
+    // --- УСЛОЖНЕНИЕ: КОРОТКИЙ ПРИЦЕЛ ---
+    // i < 20 означает, что линия будет короткой и не дойдет до стены
+    for (let i = 0; i < 20; i++) {
         simX += dx * 15;
         simY += dy * 15;
-        if (simX < bubbleRadius || simX > gameWidth - bubbleRadius) {
-            dx = -dx;
-            simX += dx * 15;
-        }
-        if (simY < 0) break;
         ctx.lineTo(simX, simY);
     }
     ctx.stroke();
